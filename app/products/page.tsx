@@ -15,7 +15,7 @@ import type { Product } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 type Props = {
-  searchParams: { categories?: string; lib?: string; limit?: string; tags?: string; view?: string; sort?: string; q?: string };
+  searchParams: { categories?: string; lib?: string; limit?: string; tags?: string; view?: string; sort?: string; q?: string; mode?: string };
 };
 
 const PAGE_SIZE = 30;
@@ -77,6 +77,8 @@ export default async function ProductsPage({ searchParams }: Props) {
 
   // 搜索关键词（名称/型号模糊匹配）
   const query = (searchParams.q || "").trim();
+  // 搜索模式：name 只匹配名称（默认），all 匹配全部参数
+  const searchMode = searchParams.mode === "all" ? "all" : "name";
 
   const baseParams = [
     selectedCategories.length > 0
@@ -88,6 +90,7 @@ export default async function ProductsPage({ searchParams }: Props) {
     view === "grid" ? "view=grid" : "",
     sort !== "newest" ? `sort=${sort}` : "",
     query ? `q=${encodeURIComponent(query)}` : "",
+    searchMode === "all" ? "mode=all" : "",
   ]
     .filter(Boolean)
     .join("&");
@@ -100,6 +103,7 @@ export default async function ProductsPage({ searchParams }: Props) {
     p_limit: limit,
     p_sort: sort,
     p_query: query,
+    p_search_mode: searchMode,
   });
   const parsed = (searchResult || { total: 0, items: [] }) as {
     total: number;
@@ -133,6 +137,7 @@ export default async function ProductsPage({ searchParams }: Props) {
       view === "grid" ? "view=grid" : "",
       sort !== "newest" ? `sort=${sort}` : "",
       query ? `q=${encodeURIComponent(query)}` : "",
+    searchMode === "all" ? "mode=all" : "",
     ]
       .filter(Boolean)
       .join("&");
@@ -148,6 +153,7 @@ export default async function ProductsPage({ searchParams }: Props) {
         : "",
       sort !== "newest" ? `sort=${sort}` : "",
       query ? `q=${encodeURIComponent(query)}` : "",
+    searchMode === "all" ? "mode=all" : "",
       v === "grid" ? "view=grid" : "",
     ]
       .filter(Boolean)
@@ -179,6 +185,7 @@ export default async function ProductsPage({ searchParams }: Props) {
       : "",
     view === "grid" ? "view=grid" : "",
     query ? `q=${encodeURIComponent(query)}` : "",
+    searchMode === "all" ? "mode=all" : "",
   ]
     .filter(Boolean)
     .join("&")}`;
@@ -258,7 +265,7 @@ export default async function ProductsPage({ searchParams }: Props) {
         </div>
 
         {/* 搜索栏 */}
-        <SearchBox initial={query} baseHref={searchBaseHref} />
+        <SearchBox initial={query} mode={searchMode} baseHref={searchBaseHref} />
 
         {/* 产品库切换 */}
         <LibraryBar
