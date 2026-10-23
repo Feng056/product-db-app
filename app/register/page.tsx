@@ -25,8 +25,13 @@ export default function RegisterPage() {
 
       <form action={onSubmit} className="mt-8 space-y-4">
         <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">昵称</label>
+          <input name="displayName" required maxLength={20} placeholder="别人看到的名字，如 张三" className={inputCls} />
+        </div>
+        <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">邮箱</label>
           <input name="email" type="email" required placeholder="you@example.com" className={inputCls} />
+          <p className="mt-1 text-xs text-gray-400">仅用于登录，不会展示给别人</p>
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">密码（至少 6 位）</label>

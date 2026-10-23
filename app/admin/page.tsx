@@ -79,10 +79,10 @@ export default async function AdminPage({
   const supabase = await createClient();
   const tab = searchParams.tab === "codes" ? "codes" : "users";
 
-  // 用户列表（含来源标注）
+  // 用户列表（含来源标注、昵称）
   const { data: users } = await supabase
     .from("profiles")
-    .select("id, email, is_admin, created_at, invite_codes(source_label)")
+    .select("id, email, display_name, is_admin, created_at, invite_codes(source_label)")
     .order("created_at", { ascending: false });
   type UserRow = Profile & {
     invite_codes: { source_label: string } | null;
@@ -131,13 +131,16 @@ export default async function AdminPage({
             {userList.map((u) => (
               <div key={u.id} className="rounded-2xl bg-white p-4">
                 <div className="flex items-center justify-between">
-                  <span className="truncate text-sm font-semibold">{u.email}</span>
+                  <span className="truncate text-sm font-semibold">
+                    {u.display_name || u.email}
+                  </span>
                   {u.is_admin && (
                     <span className="ml-2 shrink-0 rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">
                       管理员
                     </span>
                   )}
                 </div>
+                <div className="mt-0.5 truncate text-xs text-gray-400">{u.email}</div>
                 <div className="mt-1 text-xs text-gray-500">
                   来源：{u.invite_codes?.source_label || "—"}
                 </div>

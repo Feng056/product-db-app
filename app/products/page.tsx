@@ -60,7 +60,7 @@ export default async function ProductsPage({ searchParams }: Props) {
       <main className="page-container">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold">产品库</h1>
-          <SignOutButton email={profile?.email} />
+          <SignOutButton displayName={profile?.display_name} email={profile?.email} />
         </div>
 
         {/* 搜索 */}

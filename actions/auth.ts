@@ -9,12 +9,16 @@ type ActionResult = { error?: string; message?: string };
 export async function signUp(formData: FormData): Promise<ActionResult> {
   const email = String(formData.get("email") || "").trim();
   const password = String(formData.get("password") || "");
+  const displayName = String(formData.get("displayName") || "").trim();
   const inviteCode = String(formData.get("inviteCode") || "")
     .trim()
     .toUpperCase();
 
   if (!email || !password || !inviteCode) {
     return { error: "请填写邮箱、密码和邀请码" };
+  }
+  if (!displayName) {
+    return { error: "请填写昵称" };
   }
   if (password.length < 6) {
     return { error: "密码至少 6 位" };
@@ -41,10 +45,11 @@ export async function signUp(formData: FormData): Promise<ActionResult> {
     return { error: `注册失败：${signUpError.message}` };
   }
 
-  // 3. 核销邀请码（used_count+1，并记录到 profiles）
+  // 3. 核销邀请码（used_count+1，并记录到 profiles，含昵称）
   const { data: redeem } = await supabase.rpc("redeem_invite_code", {
     p_code: inviteCode,
     p_email: email,
+    p_display_name: displayName,
   });
   const ok = (redeem as { ok?: boolean } | null)?.ok;
   if (!ok) {
@@ -88,7 +93,7 @@ export async function getCurrentProfile() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, email, is_admin, invite_code_id, created_at")
+    .select("id, email, display_name, is_admin, invite_code_id, created_at")
     .eq("id", user.id)
     .single();
 

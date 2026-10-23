@@ -22,6 +22,7 @@ export type Product = {
 export type Profile = {
   id: string;
   email: string | null;
+  display_name: string;
   is_admin: boolean;
   invite_code_id: string | null;
   created_at: string;
