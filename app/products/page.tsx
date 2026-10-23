@@ -6,6 +6,7 @@ import ProductCard from "@/components/ProductCard";
 import ExportButtons from "@/components/ExportButtons";
 import SignOutButton from "@/components/SignOutButton";
 import LibraryBar from "@/components/LibraryBar";
+import LibrarySharePanel from "@/components/LibrarySharePanel";
 import { inputCls } from "@/components/SpecsEditor";
 import type { Product } from "@/lib/types";
 
@@ -51,6 +52,15 @@ export default async function ProductsPage({ searchParams }: Props) {
   const { data: products } = await query;
   const list = (products || []) as Product[];
 
+  // 整个库的产品（导出用，不受搜索/分类筛选影响）
+  const { data: allLibProducts } = await supabase
+    .from("products")
+    .select("*")
+    .eq("user_id", user!.id)
+    .eq("library_id", currentId)
+    .order("updated_at", { ascending: false });
+  const fullList = (allLibProducts || []) as Product[];
+
   // 该库下的全部分类（用于筛选）
   const { data: allCats } = await supabase
     .from("products")
@@ -83,6 +93,12 @@ export default async function ProductsPage({ searchParams }: Props) {
           libraries={libraries}
           currentId={currentId}
           baseParams={baseParams}
+        />
+
+        {/* 分享当前产品库 */}
+        <LibrarySharePanel
+          libraryId={currentId}
+          libraryName={libraries.find((l) => l.id === currentId)?.name || ""}
         />
 
         {/* 搜索 */}
@@ -130,7 +146,7 @@ export default async function ProductsPage({ searchParams }: Props) {
 
         {/* 导出 */}
         <div className="mt-3">
-          <ExportButtons products={list} />
+          <ExportButtons products={list} fullList={fullList} />
         </div>
 
         {/* 列表 */}

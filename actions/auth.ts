@@ -64,6 +64,7 @@ export async function signUp(formData: FormData): Promise<ActionResult> {
 export async function signIn(formData: FormData): Promise<ActionResult> {
   const email = String(formData.get("email") || "").trim();
   const password = String(formData.get("password") || "");
+  const next = String(formData.get("next") || "");
   if (!email || !password) {
     return { error: "请填写邮箱和密码" };
   }
@@ -73,7 +74,9 @@ export async function signIn(formData: FormData): Promise<ActionResult> {
   if (error) {
     return { error: "邮箱或密码错误" };
   }
-  redirect("/products");
+  // 只允许站内跳转，防止开放重定向
+  const target = next.startsWith("/") && !next.startsWith("//") ? next : "/products";
+  redirect(target);
 }
 
 /** 登出 */

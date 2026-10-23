@@ -50,6 +50,14 @@ export type InviteCode = {
   is_active: boolean;
 };
 
+export type LibraryShare = {
+  id: string;
+  library_id: string;
+  user_id: string;
+  token: string;
+  created_at: string;
+};
+
 /** 导入时解析出的一行数据 */
 export type ImportRow = {
   name: string;

@@ -25,6 +25,12 @@ export default async function NewProductPage({
           </Link>
           <h1 className="text-xl font-bold">新增产品</h1>
         </div>
+        <Link
+          href={lib ? `/products/new/recognize?lib=${lib}` : "/products/new/recognize"}
+          className="mb-4 flex items-center justify-center gap-2 rounded-2xl bg-green-50 py-3 text-sm font-semibold text-green-700"
+        >
+          📷 拍照识别（批量）
+        </Link>
         <ProductForm action={createProduct} libraryId={lib || undefined} />
       </main>
       <BottomNav isAdmin={profile?.is_admin} lib={lib || undefined} />

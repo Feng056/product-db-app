@@ -3,8 +3,16 @@
 import * as XLSX from "xlsx";
 import type { Product } from "@/lib/types";
 
-/** 导出按钮：JSON / CSV，纯前端生成下载 */
-export default function ExportButtons({ products }: { products: Product[] }) {
+/** 导出按钮：JSON / CSV / 导出整个库，纯前端生成下载 */
+export default function ExportButtons({
+  products,
+  fullList,
+}: {
+  products: Product[];
+  fullList?: Product[];
+}) {
+  // 整个库的产品（不受搜索/分类筛选影响），用于"导出整个库"
+  const wholeLibrary = fullList && fullList.length > 0 ? fullList : products;
   function downloadFile(filename: string, content: Blob) {
     const url = URL.createObjectURL(content);
     const a = document.createElement("a");
@@ -14,8 +22,9 @@ export default function ExportButtons({ products }: { products: Product[] }) {
     URL.revokeObjectURL(url);
   }
 
-  function exportJson() {
-    const data = products.map((p) => ({
+  function exportJson(useWhole = false) {
+    const src = useWhole ? wholeLibrary : products;
+    const data = src.map((p) => ({
       名称: p.name,
       型号: p.model,
       分类: p.category,
@@ -31,8 +40,9 @@ export default function ExportButtons({ products }: { products: Product[] }) {
     );
   }
 
-  function exportCsv() {
-    const rows = products.map((p) => ({
+  function exportCsv(useWhole = false) {
+    const src = useWhole ? wholeLibrary : products;
+    const rows = src.map((p) => ({
       名称: p.name,
       型号: p.model,
       分类: p.category,
@@ -49,20 +59,29 @@ export default function ExportButtons({ products }: { products: Product[] }) {
   }
 
   return (
-    <div className="flex gap-2">
+    <div className="space-y-2">
+      <div className="flex gap-2">
+        <button
+          onClick={() => exportJson(false)}
+          disabled={products.length === 0}
+          className="flex-1 rounded-xl bg-gray-100 py-2.5 text-sm font-medium text-gray-700 disabled:opacity-40"
+        >
+          导出当前列表 JSON
+        </button>
+        <button
+          onClick={() => exportCsv(false)}
+          disabled={products.length === 0}
+          className="flex-1 rounded-xl bg-gray-100 py-2.5 text-sm font-medium text-gray-700 disabled:opacity-40"
+        >
+          导出当前列表 CSV
+        </button>
+      </div>
       <button
-        onClick={exportJson}
-        disabled={products.length === 0}
-        className="flex-1 rounded-xl bg-gray-100 py-2.5 text-sm font-medium text-gray-700 disabled:opacity-40"
+        onClick={() => exportJson(true)}
+        disabled={wholeLibrary.length === 0}
+        className="w-full rounded-xl bg-blue-50 py-2.5 text-sm font-semibold text-blue-700 disabled:opacity-40"
       >
-        导出 JSON
-      </button>
-      <button
-        onClick={exportCsv}
-        disabled={products.length === 0}
-        className="flex-1 rounded-xl bg-gray-100 py-2.5 text-sm font-medium text-gray-700 disabled:opacity-40"
-      >
-        导出 CSV
+        📦 导出整个产品库（JSON，共 {wholeLibrary.length} 个产品）
       </button>
     </div>
   );

@@ -5,8 +5,13 @@ import Link from "next/link";
 import { signIn } from "@/actions/auth";
 import { inputCls } from "@/components/SpecsEditor";
 
-export default function LoginPage() {
+export default function LoginPage({
+  searchParams,
+}: {
+  searchParams: { next?: string };
+}) {
   const [error, setError] = useState<string | null>(null);
+  const next = searchParams.next || "";
 
   async function onSubmit(formData: FormData) {
     setError(null);
@@ -22,6 +27,7 @@ export default function LoginPage() {
       </div>
 
       <form action={onSubmit} className="mt-8 space-y-4">
+        {next && <input type="hidden" name="next" value={next} />}
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">邮箱</label>
           <input name="email" type="email" required placeholder="you@example.com" className={inputCls} />
