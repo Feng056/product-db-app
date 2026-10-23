@@ -44,7 +44,7 @@ export default function SearchBox({
             value={value}
             onChange={(e) => setValue(e.target.value)}
             placeholder={searchMode === "all" ? "搜名称 / 型号 / 参数…" : "搜索产品名称"}
-            className="w-full rounded-full border border-gray-200 bg-white py-2.5 pl-4 pr-9 text-sm outline-none focus:border-blue-500"
+            className="w-full rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 py-2.5 pl-4 pr-9 text-sm outline-none focus:border-blue-500"
           />
           {value && (
             <button
@@ -54,7 +54,7 @@ export default function SearchBox({
                 go("", searchMode);
               }}
               aria-label="清空搜索"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
             >
               ✕
             </button>
@@ -74,7 +74,7 @@ export default function SearchBox({
           className={`rounded-full px-3 py-1 font-medium ${
             searchMode === "name"
               ? "bg-blue-600 text-white"
-              : "bg-gray-100 text-gray-500"
+              : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
           }`}
         >
           名称
@@ -85,12 +85,12 @@ export default function SearchBox({
           className={`rounded-full px-3 py-1 font-medium ${
             searchMode === "all"
               ? "bg-blue-600 text-white"
-              : "bg-gray-100 text-gray-500"
+              : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
           }`}
         >
           全部
         </button>
-        <span className="self-center text-[11px] text-gray-400">
+        <span className="self-center text-[11px] text-gray-400 dark:text-gray-500">
           {searchMode === "all" ? "匹配名称、型号、分类、参数、备注" : "只匹配产品名称"}
         </span>
       </div>

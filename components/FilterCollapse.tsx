@@ -15,7 +15,7 @@ export default function FilterCollapse({
   return (
     <div className="mt-3">
       <div className="mb-1.5 flex items-center justify-between">
-        <span className="text-xs font-medium text-gray-500">
+        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 ">
           筛选{activeCount > 0 && `（${activeCount}）`}
         </span>
         <button

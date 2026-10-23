@@ -21,7 +21,7 @@ export default function CreateInviteCodeForm() {
   }
 
   return (
-    <form id="create-code-form" action={onSubmit} className="mt-4 space-y-3 rounded-2xl bg-white p-4">
+    <form id="create-code-form" action={onSubmit} className="mt-4 space-y-3 rounded-2xl bg-white dark:bg-gray-900 p-4">
       <h2 className="text-sm font-semibold">创建新邀请码</h2>
       <input
         name="code"
@@ -43,16 +43,16 @@ export default function CreateInviteCodeForm() {
           defaultValue={1}
           className={`${inputCls} w-28`}
         />
-        <span className="text-xs text-gray-500">可使用次数</span>
+        <span className="text-xs text-gray-500 dark:text-gray-400 ">可使用次数</span>
       </div>
 
       {result?.error && (
-        <div className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">
+        <div className="rounded-xl bg-red-50 dark:bg-red-950 px-4 py-2.5 text-sm text-red-600 dark:text-red-400">
           {result.error}
         </div>
       )}
       {result?.message && (
-        <div className="rounded-xl bg-green-50 px-4 py-2.5 text-sm text-green-700">
+        <div className="rounded-xl bg-green-50 dark:bg-green-950 px-4 py-2.5 text-sm text-green-700 dark:text-green-300">
           {result.message}
         </div>
       )}

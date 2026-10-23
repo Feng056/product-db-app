@@ -22,11 +22,11 @@ export default async function ImportPage({
         <h1 className="text-xl font-bold">导入 / 导出</h1>
 
         {/* 选项卡 */}
-        <div className="mt-3 grid grid-cols-2 gap-2 rounded-2xl bg-gray-100 p-1">
+        <div className="mt-3 grid grid-cols-2 gap-2 rounded-2xl bg-gray-100 dark:bg-gray-800 p-1">
           <a
             href={`/import?tab=import${libParam}`}
             className={`rounded-xl py-2.5 text-center text-sm font-semibold ${
-              tab === "import" ? "bg-white text-blue-600 shadow-sm" : "text-gray-500"
+              tab === "import" ? "bg-white dark:bg-gray-900 text-blue-600 shadow-sm" : "text-gray-500 dark:text-gray-400"
             }`}
           >
             📥 导入
@@ -34,7 +34,7 @@ export default async function ImportPage({
           <a
             href={`/import?tab=export${libParam}`}
             className={`rounded-xl py-2.5 text-center text-sm font-semibold ${
-              tab === "export" ? "bg-white text-blue-600 shadow-sm" : "text-gray-500"
+              tab === "export" ? "bg-white dark:bg-gray-900 text-blue-600 shadow-sm" : "text-gray-500 dark:text-gray-400"
             }`}
           >
             📤 导出

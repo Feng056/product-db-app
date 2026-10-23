@@ -107,7 +107,7 @@ export default function BatchPriceClient({
             key={t.key}
             onClick={() => pickTab(t.key)}
             className={`flex-1 rounded-full py-2 text-sm font-medium ${
-              tab === t.key ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600"
+              tab === t.key ? "bg-blue-600 text-white" : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
             }`}
           >
             {t.label}
@@ -122,14 +122,14 @@ export default function BatchPriceClient({
             key={k}
             onClick={() => pickGroup(k)}
             className={`rounded-full px-3 py-1.5 text-xs font-medium ${
-              group === k ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600"
+              group === k ? "bg-blue-600 text-white" : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
             }`}
           >
             {tab === "price" && k !== "未定价" ? `¥${k}` : k}（{list.length}）
           </button>
         ))}
         {groups.length === 0 && (
-          <p className="text-sm text-gray-400">当前产品库没有产品</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500">当前产品库没有产品</p>
         )}
       </div>
 
@@ -137,7 +137,7 @@ export default function BatchPriceClient({
       {group != null && (
         <div className="mt-4">
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
               {group} · 已选 {checked.size}/{groupProducts.length}
             </span>
             <button onClick={toggleAll} className="text-xs text-blue-600">
@@ -148,7 +148,7 @@ export default function BatchPriceClient({
             {groupProducts.map((p) => (
               <label
                 key={p.id}
-                className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-white p-3"
+                className="flex items-center gap-3 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-3"
               >
                 <input
                   type="checkbox"
@@ -156,21 +156,21 @@ export default function BatchPriceClient({
                   onChange={() => toggle(p.id)}
                   className="h-4 w-4 accent-blue-600"
                 />
-                <span className="min-w-0 flex-1 truncate text-sm text-gray-900">{p.name}</span>
-                <span className="text-sm font-medium text-gray-500">{formatPrice(p.price)}</span>
+                <span className="min-w-0 flex-1 truncate text-sm text-gray-900 dark:text-gray-100">{p.name}</span>
+                <span className="text-sm font-medium text-gray-500 dark:text-gray-400 ">{formatPrice(p.price)}</span>
               </label>
             ))}
           </div>
 
           {/* 改价 */}
-          <div className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
-            <label className="mb-1 block text-sm font-medium text-gray-700">新价格</label>
+          <div className="mt-4 rounded-2xl bg-white dark:bg-gray-900 p-4 shadow-sm">
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">新价格</label>
             <input
               value={newPrice}
               onChange={(e) => setNewPrice(e.target.value)}
               inputMode="decimal"
               placeholder="输入统一的新价格"
-              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-[15px] outline-none focus:border-blue-500"
+              className="w-full rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-3 text-[15px] outline-none focus:border-blue-500"
             />
             <button
               onClick={apply}

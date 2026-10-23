@@ -21,7 +21,7 @@ function DeleteButton({ id }: { id: string }) {
     >
       <button
         type="submit"
-        className="w-full rounded-2xl bg-red-50 py-3 text-sm font-semibold text-red-600"
+        className="w-full rounded-2xl bg-red-50 dark:bg-red-950 py-3 text-sm font-semibold text-red-600 dark:text-red-400"
       >
         删除该产品
       </button>
@@ -60,7 +60,7 @@ export default async function ProductDetailPage({
     <>
       <main className="page-container">
         <div className="mb-4 flex items-center justify-between">
-          <Link href="/products" className="flex items-center gap-2 text-gray-500">
+          <Link href="/products" className="flex items-center gap-2 text-gray-500 dark:text-gray-400 ">
             <span className="text-xl">‹</span> 返回
           </Link>
           {!isEdit && (
@@ -100,7 +100,7 @@ export default async function ProductDetailPage({
 
             <div>
               <h1 className="text-xl font-bold">{product.name}</h1>
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 ">
                 {product.model || "—"} · {product.category}
               </p>
               <p className="mt-2 text-2xl font-bold text-blue-600">
@@ -110,12 +110,12 @@ export default async function ProductDetailPage({
 
             {/* 规格参数 */}
             {(product.specs || []).length > 0 && (
-              <div className="rounded-2xl bg-white p-4">
-                <h2 className="mb-2 text-sm font-semibold text-gray-700">规格参数</h2>
-                <dl className="divide-y divide-gray-100 text-sm">
+              <div className="rounded-2xl bg-white dark:bg-gray-900 p-4">
+                <h2 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">规格参数</h2>
+                <dl className="divide-y divide-gray-100 dark:divide-gray-800 text-sm">
                   {product.specs.map((s, i) => (
                     <div key={i} className="flex justify-between gap-4 py-2">
-                      <dt className="text-gray-500">{s.key}</dt>
+                      <dt className="text-gray-500 dark:text-gray-400 ">{s.key}</dt>
                       <dd className="text-right font-medium">{s.value}</dd>
                     </div>
                   ))}
@@ -125,16 +125,16 @@ export default async function ProductDetailPage({
 
             {/* 备注 */}
             {product.notes && (
-              <div className="rounded-2xl bg-white p-4">
-                <h2 className="mb-2 text-sm font-semibold text-gray-700">备注</h2>
-                <p className="whitespace-pre-wrap text-sm text-gray-600">{product.notes}</p>
+              <div className="rounded-2xl bg-white dark:bg-gray-900 p-4">
+                <h2 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">备注</h2>
+                <p className="whitespace-pre-wrap text-sm text-gray-600 dark:text-gray-400 ">{product.notes}</p>
               </div>
             )}
 
             {/* 文档附件 */}
             {(product.docs || []).length > 0 && (
-              <div className="rounded-2xl bg-white p-4">
-                <h2 className="mb-2 text-sm font-semibold text-gray-700">文档附件</h2>
+              <div className="rounded-2xl bg-white dark:bg-gray-900 p-4">
+                <h2 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">文档附件</h2>
                 <div className="space-y-2">
                   {product.docs.map((d) => (
                     <DocDownloadButton key={d.path} name={d.name} path={d.path} />
@@ -143,7 +143,7 @@ export default async function ProductDetailPage({
               </div>
             )}
 
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-gray-400 dark:text-gray-500">
               创建于 {formatDateTime(product.created_at)} · 更新于{" "}
               {formatDateTime(product.updated_at)}
             </p>

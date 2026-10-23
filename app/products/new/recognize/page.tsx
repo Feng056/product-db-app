@@ -26,12 +26,12 @@ export default async function RecognizePage({
     <>
       <main className="page-container">
         <div className="mb-4 flex items-center gap-3">
-          <Link href={`/products?lib=${libId}`} className="text-xl text-gray-500">
+          <Link href={`/products?lib=${libId}`} className="text-xl text-gray-500 dark:text-gray-400 ">
             ‹
           </Link>
           <div>
             <h1 className="text-xl font-bold">拍照识别</h1>
-            <p className="text-xs text-gray-400">将保存到「{libName}」</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500">将保存到「{libName}」</p>
           </div>
         </div>
         <RecognizeClient libraryId={libId} />

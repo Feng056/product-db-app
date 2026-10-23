@@ -9,7 +9,7 @@ export default function LogoutButton() {
       onClick={() => {
         if (window.confirm("确定要退出登录吗？")) signOut();
       }}
-      className="w-full rounded-2xl bg-red-50 py-3 text-sm font-semibold text-red-600"
+      className="w-full rounded-2xl bg-red-50 dark:bg-red-950 py-3 text-sm font-semibold text-red-600 dark:text-red-400"
     >
       退出登录
     </button>

@@ -135,7 +135,7 @@ export default function ExportPanel({
     <div>
       {/* 选择产品库 */}
       <div className="mb-1 flex items-center justify-between">
-        <span className="text-sm font-medium text-gray-700">
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
           选择产品库（{selected.size}/{libraries.length}）
         </span>
         <button onClick={toggleAll} className="text-xs text-blue-600">
@@ -146,7 +146,7 @@ export default function ExportPanel({
         {libraries.map((l) => (
           <label
             key={l.id}
-            className={`flex cursor-pointer items-center gap-3 rounded-2xl bg-white p-3 ${
+            className={`flex cursor-pointer items-center gap-3 rounded-2xl bg-white dark:bg-gray-900 p-3 ${
               selected.has(l.id) ? "" : "opacity-50"
             }`}
           >
@@ -156,13 +156,13 @@ export default function ExportPanel({
               onChange={() => toggle(l.id)}
               className="h-5 w-5 accent-blue-600"
             />
-            <span className="text-sm font-medium text-gray-800">{l.name}</span>
+            <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{l.name}</span>
           </label>
         ))}
       </div>
 
       {/* 选择格式 */}
-      <div className="mb-1 mt-4 text-sm font-medium text-gray-700">导出格式</div>
+      <div className="mb-1 mt-4 text-sm font-medium text-gray-700 dark:text-gray-300">导出格式</div>
       <div className="grid grid-cols-3 gap-2">
         {formats.map((f) => (
           <button
@@ -170,20 +170,20 @@ export default function ExportPanel({
             onClick={() => setFormat(f.value)}
             className={`rounded-2xl border-2 p-3 text-center ${
               format === f.value
-                ? "border-blue-600 bg-blue-50"
-                : "border-transparent bg-white"
+                ? "border-blue-600 bg-blue-50 dark:bg-blue-950"
+                : "border-transparent bg-white dark:bg-gray-900"
             }`}
           >
-            <div className={`text-sm font-semibold ${format === f.value ? "text-blue-700" : "text-gray-700"}`}>
+            <div className={`text-sm font-semibold ${format === f.value ? "text-blue-700 dark:text-blue-300" : "text-gray-700 dark:text-gray-300"}`}>
               {f.label}
             </div>
-            <div className="mt-0.5 text-[11px] text-gray-400">{f.desc}</div>
+            <div className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">{f.desc}</div>
           </button>
         ))}
       </div>
 
       {error && (
-        <div className="mt-3 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
+        <div className="mt-3 rounded-xl bg-red-50 dark:bg-red-950 px-4 py-3 text-sm text-red-600 dark:text-red-400">{error}</div>
       )}
 
       <button

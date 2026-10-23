@@ -19,7 +19,7 @@ export default async function NewProductPage({
         <div className="mb-4 flex items-center gap-3">
           <Link
             href={lib ? `/products?lib=${lib}` : "/products"}
-            className="text-xl text-gray-500"
+            className="text-xl text-gray-500 dark:text-gray-400 "
           >
             ‹
           </Link>
@@ -28,14 +28,14 @@ export default async function NewProductPage({
         {profile?.is_admin && (
           <Link
             href={lib ? `/products/new/recognize?lib=${lib}` : "/products/new/recognize"}
-            className="mb-4 flex items-center justify-center gap-2 rounded-2xl bg-green-50 py-3 text-sm font-semibold text-green-700"
+            className="mb-4 flex items-center justify-center gap-2 rounded-2xl bg-green-50 dark:bg-green-950 py-3 text-sm font-semibold text-green-700 dark:text-green-300"
           >
             📷 拍照识别（批量）
           </Link>
         )}
         <Link
           href={lib ? `/products/batch-price?lib=${lib}` : "/products/batch-price"}
-          className="mb-4 flex items-center justify-center gap-2 rounded-2xl bg-blue-50 py-3 text-sm font-semibold text-blue-700"
+          className="mb-4 flex items-center justify-center gap-2 rounded-2xl bg-blue-50 dark:bg-blue-950 py-3 text-sm font-semibold text-blue-700 dark:text-blue-300"
         >
           💰 批量改价
         </Link>

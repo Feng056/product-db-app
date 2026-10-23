@@ -13,9 +13,9 @@ export default function ProductCard({
   return (
     <Link
       href={`/products/${product.id}`}
-      className="flex gap-3 rounded-2xl border border-gray-100 bg-white p-3 shadow-sm active:bg-gray-50"
+      className="flex gap-3 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-3 shadow-sm active:bg-gray-50 "
     >
-      <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100">
+      <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-800">
         {coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={coverUrl} alt={product.name} loading="lazy" className="h-full w-full object-cover" />
@@ -26,10 +26,10 @@ export default function ProductCard({
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <div className="truncate text-[15px] font-semibold text-gray-900">
+        <div className="truncate text-[15px] font-semibold text-gray-900 dark:text-gray-100">
           {product.name}
         </div>
-        <div className="mt-0.5 truncate text-xs text-gray-500">
+        <div className="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400 ">
           {product.model || "—"} · {product.category}
         </div>
         <div className="mt-1 text-sm font-semibold text-blue-600">

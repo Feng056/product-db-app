@@ -25,7 +25,7 @@ export default function BottomNav({
       : href;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 bg-white/95 backdrop-blur">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/95 backdrop-blur">
       <div className="mx-auto grid max-w-md grid-cols-4">
         {TABS.map((t) => {
           const active =
@@ -37,7 +37,7 @@ export default function BottomNav({
               key={t.href}
               href={withLib(t.href)}
               className={`flex flex-col items-center gap-0.5 py-2.5 text-xs ${
-                active ? "font-semibold text-blue-600" : "text-gray-500"
+                active ? "font-semibold text-blue-600" : "text-gray-500 dark:text-gray-400"
               }`}
             >
               <span className="text-xl leading-none">{t.icon}</span>

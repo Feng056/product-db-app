@@ -109,7 +109,7 @@ export default function AccountEditor({
                   setName(displayName || "");
                   setError(null);
                 }}
-                className="shrink-0 text-xs text-gray-400"
+                className="shrink-0 text-xs text-gray-400 dark:text-gray-500"
               >
                 取消
               </button>
@@ -127,7 +127,7 @@ export default function AccountEditor({
               </button>
             </div>
           )}
-          <div className="mt-0.5 truncate text-xs text-gray-400">{email}</div>
+          <div className="mt-0.5 truncate text-xs text-gray-400 dark:text-gray-500">{email}</div>
         </div>
       </div>
       {error && <p className="mt-2 text-xs text-red-500">{error}</p>}

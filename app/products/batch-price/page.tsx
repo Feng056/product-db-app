@@ -57,12 +57,12 @@ export default async function BatchPricePage({
     <>
       <main className="page-container">
         <div className="mb-4 flex items-center gap-3">
-          <Link href={`/products/new${libId ? `?lib=${libId}` : ""}`} className="text-xl text-gray-500">
+          <Link href={`/products/new${libId ? `?lib=${libId}` : ""}`} className="text-xl text-gray-500 dark:text-gray-400 ">
             ‹
           </Link>
           <div>
             <h1 className="text-xl font-bold">批量改价</h1>
-            <p className="text-xs text-gray-400">{libName} · 共 {products.length} 个产品</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500">{libName} · 共 {products.length} 个产品</p>
           </div>
         </div>
         <BatchPriceClient products={products} libraryId={libId} />

@@ -13,9 +13,9 @@ export default function ProductGridCard({
   return (
     <Link
       href={`/products/${product.id}`}
-      className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm active:bg-gray-50"
+      className="overflow-hidden rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm active:bg-gray-50 "
     >
-      <div className="aspect-square bg-gray-100">
+      <div className="aspect-square bg-gray-100 dark:bg-gray-800">
         {coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={coverUrl} alt={product.name} loading="lazy" className="h-full w-full object-cover" />
@@ -26,10 +26,10 @@ export default function ProductGridCard({
         )}
       </div>
       <div className="p-2">
-        <div className="truncate text-[13px] font-medium text-gray-900">
+        <div className="truncate text-[13px] font-medium text-gray-900 dark:text-gray-100">
           {product.name}
         </div>
-        <div className="mt-0.5 truncate text-[11px] text-gray-400">
+        <div className="mt-0.5 truncate text-[11px] text-gray-400 dark:text-gray-500">
           {product.model || "—"}
         </div>
         <div className="mt-0.5 text-[13px] font-semibold text-blue-600">

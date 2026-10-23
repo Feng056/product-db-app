@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { SpecItem } from "@/lib/types";
 
 const inputCls =
-  "w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-[15px] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
+  "w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-3 text-[15px] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
 
 /** 规格参数动态 key-value 编辑器 */
 export default function SpecsEditor({
@@ -38,11 +38,11 @@ export default function SpecsEditor({
         value={JSON.stringify(specs.filter((s) => s.key || s.value))}
       />
       <div className="mb-2 flex items-center justify-between">
-        <label className="text-sm font-medium text-gray-700">规格参数</label>
+        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">规格参数</label>
         <button
           type="button"
           onClick={add}
-          className="rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-600"
+          className="rounded-full bg-blue-50 dark:bg-blue-950 px-3 py-1 text-sm font-medium text-blue-600"
         >
           ＋ 添加
         </button>
@@ -66,7 +66,7 @@ export default function SpecsEditor({
               type="button"
               onClick={() => remove(i)}
               aria-label="删除该行"
-              className="shrink-0 rounded-xl bg-red-50 px-3 text-red-500"
+              className="shrink-0 rounded-xl bg-red-50 dark:bg-red-950 px-3 text-red-500"
             >
               ✕
             </button>

@@ -86,7 +86,7 @@ export default function LibraryBar({
                 <button
                   type="button"
                   onClick={() => setRenamingId(null)}
-                  className="shrink-0 text-xs text-gray-400"
+                  className="shrink-0 text-xs text-gray-400 dark:text-gray-500"
                 >
                   取消
                 </button>
@@ -100,7 +100,7 @@ export default function LibraryBar({
                 className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium ${
                   active
                     ? "bg-blue-600 text-white"
-                    : "bg-gray-100 text-gray-600"
+                    : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
                 }`}
               >
                 {lib.name}
@@ -110,14 +110,14 @@ export default function LibraryBar({
                   <button
                     type="button"
                     onClick={() => setRenamingId(lib.id)}
-                    className="rounded-full bg-gray-100 px-2 py-1 text-xs text-blue-600"
+                    className="rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-1 text-xs text-blue-600"
                   >
                     改名
                   </button>
                   <button
                     type="button"
                     onClick={() => onDelete(lib.id, lib.name)}
-                    className="rounded-full bg-gray-100 px-2 py-1 text-xs text-red-500"
+                    className="rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-1 text-xs text-red-500"
                   >
                     删除
                   </button>
@@ -150,7 +150,7 @@ export default function LibraryBar({
             <button
               type="button"
               onClick={() => setAdding(false)}
-              className="shrink-0 text-xs text-gray-400"
+              className="shrink-0 text-xs text-gray-400 dark:text-gray-500"
             >
               取消
             </button>
@@ -160,7 +160,7 @@ export default function LibraryBar({
             type="button"
             onClick={() => setAdding(true)}
             title="新建产品库"
-            className="shrink-0 rounded-full bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600"
+            className="shrink-0 rounded-full bg-gray-100 dark:bg-gray-800 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 "
           >
             ＋
           </button>
@@ -173,7 +173,7 @@ export default function LibraryBar({
             setManaging(!managing);
             setRenamingId(null);
           }}
-          className="shrink-0 text-xs text-gray-400 underline"
+          className="shrink-0 text-xs text-gray-400 dark:text-gray-500 underline"
         >
           {managing ? "完成" : "管理"}
         </button>

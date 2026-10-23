@@ -180,22 +180,22 @@ export default function RecognizeClient({ libraryId }: { libraryId: string }) {
           </button>
         )}
       </div>
-      <p className="mt-2 text-xs text-gray-400">
+      <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
         一次可拍多张，每张识别为一个产品；识别后可修改再批量保存
       </p>
 
       {message && (
-        <div className="mt-3 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{message}</div>
+        <div className="mt-3 rounded-xl bg-red-50 dark:bg-red-950 px-4 py-3 text-sm text-red-600 dark:text-red-400">{message}</div>
       )}
 
       {/* 结果卡片 */}
       <div className="mt-4 space-y-3">
         {photos.map((p) => (
-          <div key={p.id} className="rounded-2xl bg-white p-4">
+          <div key={p.id} className="rounded-2xl bg-white dark:bg-gray-900 p-4">
             <div className="flex gap-3">
               <img src={p.previewUrl} alt="" className="h-20 w-20 shrink-0 rounded-xl object-cover" />
               <div className="min-w-0 flex-1">
-                {p.status === "pending" && <p className="text-sm text-gray-400">等待识别</p>}
+                {p.status === "pending" && <p className="text-sm text-gray-400 dark:text-gray-500">等待识别</p>}
                 {p.status === "recognizing" && <p className="text-sm text-blue-600">识别中…</p>}
                 {p.status === "error" && (
                   <div>
@@ -228,17 +228,17 @@ export default function RecognizeClient({ libraryId }: { libraryId: string }) {
                       />
                     </div>
                     {p.product.specs.length > 0 && (
-                      <div className="rounded-xl bg-gray-50 px-3 py-2 text-xs text-gray-600">
+                      <div className="rounded-xl bg-gray-50 dark:bg-gray-900 px-3 py-2 text-xs text-gray-600 dark:text-gray-400 ">
                         {p.product.specs.map((s, i) => (
                           <div key={i} className="flex justify-between gap-2 py-0.5">
-                            <span className="text-gray-400">{s.key}</span>
+                            <span className="text-gray-400 dark:text-gray-500">{s.key}</span>
                             <span className="truncate">{s.value}</span>
                           </div>
                         ))}
                       </div>
                     )}
                     {p.product.notes && (
-                      <p className="text-xs text-gray-400">{p.product.notes}</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500">{p.product.notes}</p>
                     )}
                   </div>
                 )}
@@ -246,7 +246,7 @@ export default function RecognizeClient({ libraryId }: { libraryId: string }) {
             </div>
             {p.status === "done" && (
               <div className="mt-3 flex items-center justify-between">
-                <label className="flex items-center gap-2 text-sm text-gray-600">
+                <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 ">
                   <input
                     type="checkbox"
                     checked={p.selected}

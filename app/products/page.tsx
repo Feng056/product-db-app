@@ -258,7 +258,7 @@ export default async function ProductsPage({ searchParams }: Props) {
               </div>
             ))}
           {headerDisplay === "name" && (
-            <span className="max-w-[40%] truncate text-sm text-gray-500">
+            <span className="max-w-[40%] truncate text-sm text-gray-500 dark:text-gray-400 ">
               {profile?.display_name || profile?.email}
             </span>
           )}
@@ -290,7 +290,7 @@ export default async function ProductsPage({ searchParams }: Props) {
                 className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${
                   chip.active
                     ? "bg-blue-600 text-white"
-                    : "bg-gray-100 text-gray-600"
+                    : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
                 }`}
               >
                 {chip.active && chip.check ? "✓ " : ""}
@@ -303,11 +303,11 @@ export default async function ProductsPage({ searchParams }: Props) {
         {/* 排序 + 视图切换 */}
         <div className="mt-4 flex items-center justify-between">
           <SortSelect current={sort} baseHref={sortBaseHref} />
-          <div className="flex rounded-full bg-gray-100 p-0.5 text-xs font-medium">
+          <div className="flex rounded-full bg-gray-100 dark:bg-gray-800 p-0.5 text-xs font-medium">
             <Link
               href={viewHref("list")}
               className={`rounded-full px-3 py-1.5 ${
-                view === "list" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"
+                view === "list" ? "bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm" : "text-gray-500 dark:text-gray-400"
               }`}
             >
               ☰ 列表
@@ -315,7 +315,7 @@ export default async function ProductsPage({ searchParams }: Props) {
             <Link
               href={viewHref("grid")}
               className={`rounded-full px-3 py-1.5 ${
-                view === "grid" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"
+                view === "grid" ? "bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm" : "text-gray-500 dark:text-gray-400"
               }`}
             >
               ⊞ 宫格
@@ -327,7 +327,7 @@ export default async function ProductsPage({ searchParams }: Props) {
         {view === "grid" ? (
           <div className="mt-3 grid grid-cols-2 gap-3">
             {list.length === 0 ? (
-              <div className="col-span-2 rounded-2xl bg-white p-10 text-center text-sm text-gray-400">
+              <div className="col-span-2 rounded-2xl bg-white dark:bg-gray-900 p-10 text-center text-sm text-gray-400 dark:text-gray-500">
                 <div className="text-4xl">📦</div>
                 <p className="mt-3">
                   {selectedCategories.length > 0 || selectedTags.length > 0 || query ? "没有符合条件的产品" : "还没有产品，去新增第一个吧"}
@@ -342,7 +342,7 @@ export default async function ProductsPage({ searchParams }: Props) {
         ) : (
         <div className="mt-3 space-y-3">
           {list.length === 0 ? (
-            <div className="rounded-2xl bg-white p-10 text-center text-sm text-gray-400">
+            <div className="rounded-2xl bg-white dark:bg-gray-900 p-10 text-center text-sm text-gray-400 dark:text-gray-500">
               <div className="text-4xl">📦</div>
               <p className="mt-3">
                 {selectedCategories.length > 0 || selectedTags.length > 0 || query ? "没有符合条件的产品" : "还没有产品，去新增第一个吧"}
@@ -360,7 +360,7 @@ export default async function ProductsPage({ searchParams }: Props) {
         {hasMore && (
           <Link
             href={`/products?lib=${currentId}${baseParams ? `&${baseParams}` : ""}&limit=${limit + PAGE_SIZE}`}
-            className="mt-4 block rounded-2xl bg-gray-100 py-3 text-center text-sm font-medium text-gray-600"
+            className="mt-4 block rounded-2xl bg-gray-100 dark:bg-gray-800 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-400 "
           >
             加载更多（还剩 {total - list.length} 个，共 {total} 个）
           </Link>

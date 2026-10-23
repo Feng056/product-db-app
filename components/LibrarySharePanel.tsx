@@ -84,14 +84,14 @@ export default function LibrarySharePanel({
       <button
         type="button"
         onClick={toggleOpen}
-        className="flex w-full items-center justify-center gap-1 rounded-xl bg-blue-50 py-2 text-xs font-semibold text-blue-700"
+        className="flex w-full items-center justify-center gap-1 rounded-xl bg-blue-50 dark:bg-blue-950 py-2 text-xs font-semibold text-blue-700 dark:text-blue-300"
       >
         🔗 分享「{libraryName}」
       </button>
 
       {open && (
-        <div className="mt-2 rounded-xl border border-blue-100 bg-blue-50/50 p-3">
-          <p className="text-xs text-gray-500">
+        <div className="mt-2 rounded-xl border border-blue-100 bg-blue-50 dark:bg-blue-950/50 p-3">
+          <p className="text-xs text-gray-500 dark:text-gray-400 ">
             生成链接发给别人，对方打开后可一键导入整个产品库（含图片）
           </p>
           <button
@@ -110,22 +110,22 @@ export default function LibrarySharePanel({
               {shares.map((s) => {
                 const url = `/share/${s.token}`;
                 return (
-                  <div key={s.id} className="rounded-xl bg-white p-2">
-                    <p className="truncate text-xs text-gray-500">
+                  <div key={s.id} className="rounded-xl bg-white dark:bg-gray-900 p-2">
+                    <p className="truncate text-xs text-gray-500 dark:text-gray-400 ">
                       {typeof window !== "undefined" ? window.location.origin : ""}{url}
                     </p>
                     <div className="mt-1 flex gap-2">
                       <button
                         type="button"
                         onClick={() => copyLink(s.token)}
-                        className="flex-1 rounded-lg bg-gray-100 py-1.5 text-xs font-medium text-gray-700"
+                        className="flex-1 rounded-lg bg-gray-100 dark:bg-gray-800 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300"
                       >
                         {copied === s.token ? "已复制 ✓" : "复制链接"}
                       </button>
                       <button
                         type="button"
                         onClick={() => onRevoke(s.id)}
-                        className="rounded-lg bg-red-50 px-3 py-1.5 text-xs text-red-500"
+                        className="rounded-lg bg-red-50 dark:bg-red-950 px-3 py-1.5 text-xs text-red-500"
                       >
                         撤销
                       </button>

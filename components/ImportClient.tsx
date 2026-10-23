@@ -78,10 +78,10 @@ function DiffRow({ label, oldV, newV }: { label: string; oldV: string; newV: str
   if (oldV === newV) return null;
   return (
     <div className="flex gap-2 text-xs">
-      <span className="w-12 shrink-0 text-gray-400">{label}</span>
+      <span className="w-12 shrink-0 text-gray-400 dark:text-gray-500">{label}</span>
       <span className="min-w-0 flex-1 truncate text-red-500 line-through">{oldV || "—"}</span>
       <span className="text-gray-300">→</span>
-      <span className="min-w-0 flex-1 truncate font-medium text-green-700">{newV || "—"}</span>
+      <span className="min-w-0 flex-1 truncate font-medium text-green-700 dark:text-green-300">{newV || "—"}</span>
     </div>
   );
 }
@@ -241,17 +241,17 @@ export default function ImportClient({ libraryId }: { libraryId?: string }) {
 
   return (
     <div>
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-gray-500 dark:text-gray-400 ">
         支持 Excel（.xlsx/.xls）、CSV、JSON。重复产品可对比差异后选择覆盖或跳过，覆盖前自动备份，可一键回退。
         {libraryId ? "" : "将导入到默认产品库。"}
       </p>
 
-      <label className="mt-4 block cursor-pointer rounded-2xl border-2 border-dashed border-gray-200 bg-white p-8 text-center">
+      <label className="mt-4 block cursor-pointer rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-8 text-center">
         <div className="text-3xl">📥</div>
-        <div className="mt-2 text-sm font-medium text-gray-700">
+        <div className="mt-2 text-sm font-medium text-gray-700 dark:text-gray-300">
           {fileName || "点击选择文件"}
         </div>
-        <div className="mt-1 text-xs text-gray-400">.xlsx / .xls / .csv / .json</div>
+        <div className="mt-1 text-xs text-gray-400 dark:text-gray-500">.xlsx / .xls / .csv / .json</div>
         <input
           type="file"
           accept=".xlsx,.xls,.csv,.json"
@@ -263,8 +263,8 @@ export default function ImportClient({ libraryId }: { libraryId?: string }) {
         />
       </label>
 
-      <details className="mt-3 rounded-2xl bg-white p-4 text-xs text-gray-500">
-        <summary className="cursor-pointer font-medium text-gray-700">
+      <details className="mt-3 rounded-2xl bg-white dark:bg-gray-900 p-4 text-xs text-gray-500 dark:text-gray-400 ">
+        <summary className="cursor-pointer font-medium text-gray-700 dark:text-gray-300">
           表头格式说明（点击展开）
         </summary>
         <ul className="mt-2 list-disc space-y-1 pl-4">
@@ -276,19 +276,19 @@ export default function ImportClient({ libraryId }: { libraryId?: string }) {
       </details>
 
       {parseError && (
-        <div className="mt-3 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
+        <div className="mt-3 rounded-xl bg-red-50 dark:bg-red-950 px-4 py-3 text-sm text-red-600 dark:text-red-400">
           {parseError}
         </div>
       )}
 
       {checking && (
-        <div className="mt-4 text-center text-sm text-gray-500">正在检查重复…</div>
+        <div className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400 ">正在检查重复…</div>
       )}
 
       {rows.length > 0 && (
         <>
           <div className="mt-4 flex items-center justify-between">
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-gray-600 dark:text-gray-400 ">
               新增 {newCount} · 有差异 {diffCount} · 无变化 {sameCount}
             </span>
             <button onClick={toggleAll} className="text-sm text-blue-600">
@@ -299,13 +299,13 @@ export default function ImportClient({ libraryId }: { libraryId?: string }) {
             <div className="mt-2 flex gap-2 text-xs">
               <button
                 onClick={() => setAllOverwrite(true)}
-                className="rounded-full bg-blue-50 px-3 py-1.5 font-medium text-blue-600"
+                className="rounded-full bg-blue-50 dark:bg-blue-950 px-3 py-1.5 font-medium text-blue-600"
               >
                 有差异的全部覆盖
               </button>
               <button
                 onClick={() => setAllOverwrite(false)}
-                className="rounded-full bg-gray-100 px-3 py-1.5 font-medium text-gray-600"
+                className="rounded-full bg-gray-100 dark:bg-gray-800 px-3 py-1.5 font-medium text-gray-600 dark:text-gray-400 "
               >
                 有差异的全部跳过
               </button>
@@ -319,7 +319,7 @@ export default function ImportClient({ libraryId }: { libraryId?: string }) {
               return (
                 <div
                   key={r.index}
-                  className={`rounded-2xl bg-white p-3 ${r.selected ? "" : "opacity-50"}`}
+                  className={`rounded-2xl bg-white dark:bg-gray-900 p-3 ${r.selected ? "" : "opacity-50"}`}
                 >
                   <label className="flex cursor-pointer items-start gap-3">
                     <input
@@ -332,22 +332,22 @@ export default function ImportClient({ libraryId }: { libraryId?: string }) {
                       <div className="flex items-center gap-2">
                         <span className="truncate font-semibold">{r.name}</span>
                         {st === "new" && (
-                          <span className="shrink-0 rounded-full bg-green-50 px-2 py-0.5 text-[11px] text-green-600">
+                          <span className="shrink-0 rounded-full bg-green-50 dark:bg-green-950 px-2 py-0.5 text-[11px] text-green-600">
                             新增
                           </span>
                         )}
                         {st === "same" && (
-                          <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500">
+                          <span className="shrink-0 rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-[11px] text-gray-500 dark:text-gray-400 ">
                             无变化
                           </span>
                         )}
                         {st === "different" && (
-                          <span className="shrink-0 rounded-full bg-orange-50 px-2 py-0.5 text-[11px] text-orange-600">
+                          <span className="shrink-0 rounded-full bg-orange-50 dark:bg-orange-950 px-2 py-0.5 text-[11px] text-orange-600 dark:text-orange-400">
                             有差异
                           </span>
                         )}
                       </div>
-                      <div className="truncate text-xs text-gray-500">
+                      <div className="truncate text-xs text-gray-500 dark:text-gray-400 ">
                         {r.model || "—"} · {r.category}
                         {r.price !== null && ` · ¥${r.price}`}
                       </div>
@@ -355,8 +355,8 @@ export default function ImportClient({ libraryId }: { libraryId?: string }) {
                   </label>
 
                   {st === "different" && ex && (
-                    <div className="mt-2 rounded-xl bg-gray-50 p-3">
-                      <div className="mb-1.5 text-xs font-medium text-gray-500">
+                    <div className="mt-2 rounded-xl bg-gray-50 dark:bg-gray-900 p-3">
+                      <div className="mb-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 ">
                         差异对比（旧 → 新）
                       </div>
                       <div className="space-y-1">
@@ -375,8 +375,8 @@ export default function ImportClient({ libraryId }: { libraryId?: string }) {
                           onClick={() => setOverwrite(r.index, true)}
                           className={`rounded-full px-3 py-1 text-xs font-medium ${
                             r.overwrite
-                              ? "bg-orange-500 text-white"
-                              : "bg-white text-gray-600"
+                              ? "bg-orange-50 dark:bg-orange-9500 text-white"
+                              : "bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400"
                           }`}
                         >
                           覆盖
@@ -385,8 +385,8 @@ export default function ImportClient({ libraryId }: { libraryId?: string }) {
                           onClick={() => setOverwrite(r.index, false)}
                           className={`rounded-full px-3 py-1 text-xs font-medium ${
                             !r.overwrite
-                              ? "bg-gray-500 text-white"
-                              : "bg-white text-gray-600"
+                              ? "bg-gray-50 dark:bg-gray-9000 text-white"
+                              : "bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400"
                           }`}
                         >
                           跳过
@@ -398,7 +398,7 @@ export default function ImportClient({ libraryId }: { libraryId?: string }) {
               );
             })}
             {rows.length > 50 && (
-              <p className="text-center text-xs text-gray-400">
+              <p className="text-center text-xs text-gray-400 dark:text-gray-500">
                 仅显示前 50 行，共 {rows.length} 行
               </p>
             )}
@@ -417,7 +417,7 @@ export default function ImportClient({ libraryId }: { libraryId?: string }) {
       {result && (
         <div
           className={`mt-4 rounded-2xl p-4 text-sm ${
-            result.error ? "bg-red-50 text-red-600" : "bg-green-50 text-green-700"
+            result.error ? "bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400" : "bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300"
           }`}
         >
           {result.error ? (
@@ -442,7 +442,7 @@ export default function ImportClient({ libraryId }: { libraryId?: string }) {
                 <button
                   onClick={doRollback}
                   disabled={rollingBack}
-                  className="mt-3 w-full rounded-xl bg-white py-2.5 text-sm font-medium text-red-600 disabled:opacity-50"
+                  className="mt-3 w-full rounded-xl bg-white dark:bg-gray-900 py-2.5 text-sm font-medium text-red-600 dark:text-red-400 disabled:opacity-50"
                 >
                   {rollingBack ? "回退中…" : "↩ 撤销本次导入（恢复到之前）"}
                 </button>
@@ -452,7 +452,7 @@ export default function ImportClient({ libraryId }: { libraryId?: string }) {
         </div>
       )}
       {rollbackMsg && (
-        <div className="mt-3 rounded-2xl bg-blue-50 p-4 text-center text-sm text-blue-700">
+        <div className="mt-3 rounded-2xl bg-blue-50 dark:bg-blue-950 p-4 text-center text-sm text-blue-700 dark:text-blue-300">
           {rollbackMsg}
         </div>
       )}

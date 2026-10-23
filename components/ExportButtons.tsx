@@ -83,14 +83,14 @@ export default function ExportButtons({
         <button
           onClick={exportJson}
           disabled={products.length === 0}
-          className="flex-1 rounded-xl bg-gray-100 py-2.5 text-sm font-medium text-gray-700 disabled:opacity-40"
+          className="flex-1 rounded-xl bg-gray-100 dark:bg-gray-800 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 disabled:opacity-40"
         >
           导出当前列表 JSON
         </button>
         <button
           onClick={exportCsv}
           disabled={products.length === 0}
-          className="flex-1 rounded-xl bg-gray-100 py-2.5 text-sm font-medium text-gray-700 disabled:opacity-40"
+          className="flex-1 rounded-xl bg-gray-100 dark:bg-gray-800 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 disabled:opacity-40"
         >
           导出当前列表 CSV
         </button>
@@ -98,7 +98,7 @@ export default function ExportButtons({
       <button
         onClick={exportWholeLibrary}
         disabled={exporting}
-        className="w-full rounded-xl bg-blue-50 py-2.5 text-sm font-semibold text-blue-700 disabled:opacity-40"
+        className="w-full rounded-xl bg-blue-50 dark:bg-blue-950 py-2.5 text-sm font-semibold text-blue-700 dark:text-blue-300 disabled:opacity-40"
       >
         {exporting ? "正在获取数据…" : "📦 导出整个产品库（JSON）"}
       </button>

@@ -29,16 +29,16 @@ export default function LoginPage({
       <form action={onSubmit} className="mt-8 space-y-4">
         {next && <input type="hidden" name="next" value={next} />}
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">邮箱</label>
+          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">邮箱</label>
           <input name="email" type="email" required placeholder="you@example.com" className={inputCls} />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">密码</label>
+          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">密码</label>
           <input name="password" type="password" required placeholder="请输入密码" className={inputCls} />
         </div>
 
         {error && (
-          <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
+          <div className="rounded-xl bg-red-50 dark:bg-red-950 px-4 py-3 text-sm text-red-600 dark:text-red-400">{error}</div>
         )}
 
         <button
@@ -49,7 +49,7 @@ export default function LoginPage({
         </button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-gray-500">
+      <p className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400 ">
         还没有账号？
         <Link href="/register" className="font-medium text-blue-600">
           去注册（需要邀请码）

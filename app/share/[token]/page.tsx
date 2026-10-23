@@ -17,10 +17,10 @@ export default async function SharePage({
   if (!shared.ok) {
     return (
       <main className="page-container">
-        <div className="mt-20 rounded-2xl bg-white p-10 text-center">
+        <div className="mt-20 rounded-2xl bg-white dark:bg-gray-900 p-10 text-center">
           <div className="text-4xl">🔗</div>
           <p className="mt-3 font-medium">分享链接无效</p>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 ">
             {shared.message || "该分享可能已被撤销"}
           </p>
           <Link
@@ -60,7 +60,7 @@ export default async function SharePage({
       <div className="mt-6 text-center">
         <div className="text-5xl">📦</div>
         <h1 className="mt-3 text-2xl font-bold">{shared.library_name}</h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 ">
           {shared.owner_name ? `${shared.owner_name} 分享` : "产品库分享"} · 共{" "}
           {shared.product_count} 个产品
         </p>
@@ -69,24 +69,24 @@ export default async function SharePage({
       {/* 产品预览 */}
       <div className="mt-6 space-y-2">
         {products.slice(0, 20).map((p, i) => (
-          <div key={i} className="flex items-center gap-3 rounded-2xl bg-white p-3">
+          <div key={i} className="flex items-center gap-3 rounded-2xl bg-white dark:bg-gray-900 p-3">
             {covers[i] ? (
               <img src={covers[i]!} alt="" className="h-12 w-12 shrink-0 rounded-xl object-cover" />
             ) : (
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-xl">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-800 text-xl">
                 📦
               </div>
             )}
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold">{p.name}</p>
-              <p className="truncate text-xs text-gray-400">
+              <p className="truncate text-xs text-gray-400 dark:text-gray-500">
                 {[p.model, p.category].filter(Boolean).join(" · ")}
               </p>
             </div>
           </div>
         ))}
         {(shared.product_count || 0) > 20 && (
-          <p className="text-center text-xs text-gray-400">
+          <p className="text-center text-xs text-gray-400 dark:text-gray-500">
             还有 {(shared.product_count || 0) - 20} 个产品…
           </p>
         )}
@@ -111,7 +111,7 @@ export default async function SharePage({
             登录后导入
           </Link>
         )}
-        <p className="mt-2 text-center text-xs text-gray-400">
+        <p className="mt-2 text-center text-xs text-gray-400 dark:text-gray-500">
           导入会在你的账号下新建「{shared.library_name}（分享）」产品库
         </p>
       </div>

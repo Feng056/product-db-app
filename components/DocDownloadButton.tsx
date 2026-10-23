@@ -22,7 +22,7 @@ export default function DocDownloadButton({ name, path }: { name: string; path: 
     <button
       onClick={download}
       disabled={loading}
-      className="flex w-full items-center justify-between rounded-xl bg-gray-50 px-4 py-3 text-left text-sm active:bg-gray-100 disabled:opacity-60"
+      className="flex w-full items-center justify-between rounded-xl bg-gray-50 dark:bg-gray-900 px-4 py-3 text-left text-sm active:bg-gray-100 disabled:opacity-60"
     >
       <span className="truncate">📄 {name}</span>
       <span className="ml-2 shrink-0 text-blue-600">{loading ? "获取中…" : "下载"}</span>

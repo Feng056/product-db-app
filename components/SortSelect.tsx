@@ -26,7 +26,7 @@ export default function SortSelect({
         const v = e.target.value;
         router.push(v === "newest" ? baseHref : `${baseHref}&sort=${v}`);
       }}
-      className="rounded-full bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 outline-none"
+      className="rounded-full bg-gray-100 dark:bg-gray-800 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 outline-none"
       aria-label="排序方式"
     >
       {OPTIONS.map((o) => (

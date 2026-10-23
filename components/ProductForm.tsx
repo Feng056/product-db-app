@@ -53,7 +53,7 @@ export default function ProductForm({
       )}
 
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">
+        <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
           产品名称 <span className="text-red-500">*</span>
         </label>
         <input name="name" required defaultValue={product?.name} placeholder="如 便携蓝牙音箱" className={inputCls} />
@@ -61,17 +61,17 @@ export default function ProductForm({
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">型号</label>
+          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">型号</label>
           <input name="model" defaultValue={product?.model} placeholder="如 X100" className={inputCls} />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">分类</label>
+          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">分类</label>
           <input name="category" defaultValue={product?.category} placeholder="如 音频设备" className={inputCls} />
         </div>
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">价格（元）</label>
+        <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">价格（元）</label>
         <input
           name="price"
           type="number"
@@ -86,12 +86,12 @@ export default function ProductForm({
       <SpecsEditor initial={product?.specs} />
 
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">备注</label>
+        <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">备注</label>
         <textarea name="notes" rows={3} defaultValue={product?.notes} placeholder="补充说明…" className={inputCls} />
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">产品图片</label>
+        <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">产品图片</label>
         {keepImages.length > 0 && (
           <div className="mb-2 grid grid-cols-4 gap-2">
             {keepImages.map((p) => (
@@ -105,7 +105,7 @@ export default function ProductForm({
                 <button
                   type="button"
                   onClick={() => removeImage(p)}
-                  className="absolute -right-1 -top-1 rounded-full bg-red-500 px-1.5 text-xs text-white"
+                  className="absolute -right-1 -top-1 rounded-full bg-red-50 dark:bg-red-9500 px-1.5 text-xs text-white"
                 >
                   ✕
                 </button>
@@ -118,18 +118,18 @@ export default function ProductForm({
           name="newImages"
           accept="image/*"
           multiple
-          className="block w-full text-sm text-gray-500 file:mr-3 file:rounded-xl file:border-0 file:bg-blue-50 file:px-4 file:py-2.5 file:text-sm file:font-medium file:text-blue-600"
+          className="block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-3 file:rounded-xl file:border-0 file:bg-blue-50 dark:bg-blue-950 file:px-4 file:py-2.5 file:text-sm file:font-medium file:text-blue-600"
         />
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">文档附件（说明书、报价单等）</label>
+        <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">文档附件（说明书、报价单等）</label>
         {keepDocs.length > 0 && (
           <ul className="mb-2 space-y-1">
             {keepDocs.map((d) => (
               <li
                 key={d.path}
-                className="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2 text-sm"
+                className="flex items-center justify-between rounded-xl bg-gray-50 dark:bg-gray-900 px-3 py-2 text-sm"
               >
                 <span className="truncate">📄 {d.name}</span>
                 <button type="button" onClick={() => removeDoc(d.path)} className="ml-2 text-red-500">
@@ -143,12 +143,12 @@ export default function ProductForm({
           type="file"
           name="newDocs"
           multiple
-          className="block w-full text-sm text-gray-500 file:mr-3 file:rounded-xl file:border-0 file:bg-blue-50 file:px-4 file:py-2.5 file:text-sm file:font-medium file:text-blue-600"
+          className="block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-3 file:rounded-xl file:border-0 file:bg-blue-50 dark:bg-blue-950 file:px-4 file:py-2.5 file:text-sm file:font-medium file:text-blue-600"
         />
       </div>
 
       {error && (
-        <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
+        <div className="rounded-xl bg-red-50 dark:bg-red-950 px-4 py-3 text-sm text-red-600 dark:text-red-400">{error}</div>
       )}
 
       <SubmitButton label={product ? "保存修改" : "创建产品"} />

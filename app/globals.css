@@ -11,6 +11,11 @@ body {
   color: #111827;
 }
 
+.dark body {
+  background-color: #0b0f19;
+  color: #e5e7eb;
+}
+
 /* 移动端优先：内容区最大宽度，底部给导航留空间 */
 .page-container {
   @apply mx-auto w-full max-w-md px-4 pb-28 pt-5;
