@@ -33,6 +33,12 @@ export default async function NewProductPage({
             📷 拍照识别（批量）
           </Link>
         )}
+        <Link
+          href={lib ? `/products/batch-price?lib=${lib}` : "/products/batch-price"}
+          className="mb-4 flex items-center justify-center gap-2 rounded-2xl bg-blue-50 py-3 text-sm font-semibold text-blue-700"
+        >
+          💰 批量改价
+        </Link>
         <ProductForm action={createProduct} libraryId={lib || undefined} />
       </main>
       <BottomNav isAdmin={profile?.is_admin} lib={lib || undefined} />

@@ -8,12 +8,13 @@ import LibrarySharePanel from "@/components/LibrarySharePanel";
 import FilterCollapse from "@/components/FilterCollapse";
 import ProductGridCard from "@/components/ProductGridCard";
 import SortSelect from "@/components/SortSelect";
+import SearchBox from "@/components/SearchBox";
 import type { Product } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 type Props = {
-  searchParams: { categories?: string; lib?: string; limit?: string; tags?: string; view?: string; sort?: string };
+  searchParams: { categories?: string; lib?: string; limit?: string; tags?: string; view?: string; sort?: string; q?: string };
 };
 
 const PAGE_SIZE = 30;
@@ -73,6 +74,9 @@ export default async function ProductsPage({ searchParams }: Props) {
     ? (searchParams.sort as (typeof validSorts)[number])
     : "newest";
 
+  // 搜索关键词（名称/型号模糊匹配）
+  const query = (searchParams.q || "").trim();
+
   const baseParams = [
     selectedCategories.length > 0
       ? `categories=${encodeURIComponent(selectedCategories.join(","))}`
@@ -82,6 +86,7 @@ export default async function ProductsPage({ searchParams }: Props) {
       : "",
     view === "grid" ? "view=grid" : "",
     sort !== "newest" ? `sort=${sort}` : "",
+    query ? `q=${encodeURIComponent(query)}` : "",
   ]
     .filter(Boolean)
     .join("&");
@@ -93,6 +98,7 @@ export default async function ProductsPage({ searchParams }: Props) {
     p_tags: selectedTags,
     p_limit: limit,
     p_sort: sort,
+    p_query: query,
   });
   const parsed = (searchResult || { total: 0, items: [] }) as {
     total: number;
@@ -125,6 +131,7 @@ export default async function ProductsPage({ searchParams }: Props) {
       tagList.length > 0 ? `tags=${encodeURIComponent(tagList.join(","))}` : "",
       view === "grid" ? "view=grid" : "",
       sort !== "newest" ? `sort=${sort}` : "",
+      query ? `q=${encodeURIComponent(query)}` : "",
     ]
       .filter(Boolean)
       .join("&");
@@ -139,12 +146,27 @@ export default async function ProductsPage({ searchParams }: Props) {
         ? `tags=${encodeURIComponent(selectedTags.join(","))}`
         : "",
       sort !== "newest" ? `sort=${sort}` : "",
+      query ? `q=${encodeURIComponent(query)}` : "",
       v === "grid" ? "view=grid" : "",
     ]
       .filter(Boolean)
       .join("&");
     return `/products?${params}`;
   };
+  // 搜索框的基础链接（不含 q，搜索时重置分页）
+  const searchBaseHref = `/products?${[
+    `lib=${currentId}`,
+    selectedCategories.length > 0
+      ? `categories=${encodeURIComponent(selectedCategories.join(","))}`
+      : "",
+    selectedTags.length > 0
+      ? `tags=${encodeURIComponent(selectedTags.join(","))}`
+      : "",
+    view === "grid" ? "view=grid" : "",
+    sort !== "newest" ? `sort=${sort}` : "",
+  ]
+    .filter(Boolean)
+    .join("&")}`;
   // 排序切换的基础链接（不含 sort，切换时重置分页）
   const sortBaseHref = `/products?${[
     `lib=${currentId}`,
@@ -155,6 +177,7 @@ export default async function ProductsPage({ searchParams }: Props) {
       ? `tags=${encodeURIComponent(selectedTags.join(","))}`
       : "",
     view === "grid" ? "view=grid" : "",
+    query ? `q=${encodeURIComponent(query)}` : "",
   ]
     .filter(Boolean)
     .join("&")}`;
@@ -233,6 +256,9 @@ export default async function ProductsPage({ searchParams }: Props) {
           )}
         </div>
 
+        {/* 搜索栏 */}
+        <SearchBox initial={query} baseHref={searchBaseHref} />
+
         {/* 产品库切换 */}
         <LibraryBar
           libraries={libraries}
@@ -296,7 +322,7 @@ export default async function ProductsPage({ searchParams }: Props) {
               <div className="col-span-2 rounded-2xl bg-white p-10 text-center text-sm text-gray-400">
                 <div className="text-4xl">📦</div>
                 <p className="mt-3">
-                  {selectedCategories.length > 0 || selectedTags.length > 0 ? "没有符合条件的产品" : "还没有产品，去新增第一个吧"}
+                  {selectedCategories.length > 0 || selectedTags.length > 0 || query ? "没有符合条件的产品" : "还没有产品，去新增第一个吧"}
                 </p>
               </div>
             ) : (
@@ -311,7 +337,7 @@ export default async function ProductsPage({ searchParams }: Props) {
             <div className="rounded-2xl bg-white p-10 text-center text-sm text-gray-400">
               <div className="text-4xl">📦</div>
               <p className="mt-3">
-                {selectedCategories.length > 0 || selectedTags.length > 0 ? "没有符合条件的产品" : "还没有产品，去新增第一个吧"}
+                {selectedCategories.length > 0 || selectedTags.length > 0 || query ? "没有符合条件的产品" : "还没有产品，去新增第一个吧"}
               </p>
             </div>
           ) : (

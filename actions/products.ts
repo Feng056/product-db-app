@@ -317,3 +317,36 @@ export async function getMultiLibraryExportData(
   }));
   return { data: items };
 }
+
+/** 批量修改价格：一键更新多个产品的价格 */
+export async function batchUpdatePrice(
+  libraryId: string,
+  productIds: string[],
+  newPrice: number
+): Promise<{ updated?: number; error?: string }> {
+  const { supabase, user } = await requireUser();
+  if (!productIds.length) return { error: "未选择产品" };
+  if (!Number.isFinite(newPrice) || newPrice < 0) return { error: "价格无效" };
+
+  // 校验产品库归属
+  const { data: lib } = await supabase
+    .from("libraries")
+    .select("id")
+    .eq("id", libraryId)
+    .eq("user_id", user.id)
+    .single();
+  if (!lib) return { error: "产品库不存在或无权限" };
+
+  // 仅更新属于该用户该库的产品
+  const { data: updated, error } = await supabase
+    .from("products")
+    .update({ price: newPrice })
+    .eq("user_id", user.id)
+    .eq("library_id", libraryId)
+    .in("id", productIds)
+    .select("id");
+  if (error) return { error: error.message };
+
+  revalidatePath("/products");
+  return { updated: (updated || []).length };
+}
