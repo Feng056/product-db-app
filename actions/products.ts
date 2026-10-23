@@ -240,3 +240,38 @@ export async function getDocDownloadUrl(path: string): Promise<{ url?: string; e
   if (error || !data) return { error: "获取下载链接失败" };
   return { url: data.signedUrl };
 }
+
+export type LibraryExportData = {
+  name: string;
+  model: string;
+  category: string;
+  price: number | null;
+  specs: SpecItem[];
+  notes: string;
+  images: string[];
+  docs: DocItem[];
+};
+
+/** 按需获取整个产品库的导出数据（避免列表页每次全量加载） */
+export async function getLibraryExportData(
+  libraryId: string
+): Promise<{ data?: LibraryExportData[]; error?: string }> {
+  const { supabase, user } = await requireUser();
+
+  const { data: lib } = await supabase
+    .from("libraries")
+    .select("id")
+    .eq("id", libraryId)
+    .eq("user_id", user.id)
+    .single();
+  if (!lib) return { error: "产品库不存在或无权限" };
+
+  const { data, error } = await supabase
+    .from("products")
+    .select("name, model, category, price, specs, notes, images, docs")
+    .eq("user_id", user.id)
+    .eq("library_id", libraryId)
+    .order("updated_at", { ascending: false });
+  if (error) return { error: error.message };
+  return { data: (data || []) as LibraryExportData[] };
+}

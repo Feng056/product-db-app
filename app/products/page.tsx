@@ -13,10 +13,12 @@ import type { Product } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 type Props = {
-  searchParams: { q?: string; category?: string; lib?: string };
+  searchParams: { q?: string; category?: string; lib?: string; limit?: string };
 };
 
-/** 产品列表：产品库切换 + 搜索 + 分类筛选 + 导出 */
+const PAGE_SIZE = 30;
+
+/** 产品列表：产品库切换 + 搜索 + 分类筛选 + 导出（分页加载） */
 export default async function ProductsPage({ searchParams }: Props) {
   const { user, profile } = await getCurrentProfile();
   const supabase = await createClient();
@@ -28,6 +30,10 @@ export default async function ProductsPage({ searchParams }: Props) {
 
   const q = (searchParams.q || "").trim();
   const category = searchParams.category || "";
+  const limit = Math.min(
+    Math.max(parseInt(searchParams.limit || "", 10) || PAGE_SIZE, PAGE_SIZE),
+    1000
+  );
   const baseParams = [
     q ? `q=${encodeURIComponent(q)}` : "",
     category ? `category=${encodeURIComponent(category)}` : "",
@@ -35,12 +41,14 @@ export default async function ProductsPage({ searchParams }: Props) {
     .filter(Boolean)
     .join("&");
 
+  // 列表只取展示需要的列 + 分页，附带总数
   let query = supabase
     .from("products")
-    .select("*")
+    .select("id, name, model, category, price, images", { count: "exact" })
     .eq("user_id", user!.id)
     .eq("library_id", currentId)
-    .order("updated_at", { ascending: false });
+    .order("updated_at", { ascending: false })
+    .limit(limit);
 
   if (q) {
     query = query.or(`name.ilike.%${q}%,model.ilike.%${q}%`);
@@ -49,17 +57,10 @@ export default async function ProductsPage({ searchParams }: Props) {
     query = query.eq("category", category);
   }
 
-  const { data: products } = await query;
+  const { data: products, count } = await query;
   const list = (products || []) as Product[];
-
-  // 整个库的产品（导出用，不受搜索/分类筛选影响）
-  const { data: allLibProducts } = await supabase
-    .from("products")
-    .select("*")
-    .eq("user_id", user!.id)
-    .eq("library_id", currentId)
-    .order("updated_at", { ascending: false });
-  const fullList = (allLibProducts || []) as Product[];
+  const total = count || 0;
+  const hasMore = list.length < total;
 
   // 该库下的全部分类（用于筛选）
   const { data: allCats } = await supabase
@@ -146,7 +147,7 @@ export default async function ProductsPage({ searchParams }: Props) {
 
         {/* 导出 */}
         <div className="mt-3">
-          <ExportButtons products={list} fullList={fullList} />
+          <ExportButtons products={list} libraryId={currentId} />
         </div>
 
         {/* 列表 */}
@@ -164,6 +165,16 @@ export default async function ProductsPage({ searchParams }: Props) {
             ))
           )}
         </div>
+
+        {/* 分页：加载更多 */}
+        {hasMore && (
+          <a
+            href={`/products?lib=${currentId}${baseParams ? `&${baseParams}` : ""}&limit=${limit + PAGE_SIZE}`}
+            className="mt-4 block rounded-2xl bg-gray-100 py-3 text-center text-sm font-medium text-gray-600"
+          >
+            加载更多（还剩 {total - list.length} 个，共 {total} 个）
+          </a>
+        )}
       </main>
       <BottomNav isAdmin={profile?.is_admin} lib={currentId} />
     </>

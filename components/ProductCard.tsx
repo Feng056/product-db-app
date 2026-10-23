@@ -18,7 +18,7 @@ export default function ProductCard({
       <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100">
         {coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={coverUrl} alt={product.name} className="h-full w-full object-cover" />
+          <img src={coverUrl} alt={product.name} loading="lazy" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-2xl text-gray-300">
             📦

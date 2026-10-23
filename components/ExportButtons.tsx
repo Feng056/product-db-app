@@ -1,18 +1,21 @@
 "use client";
 
+import { useState } from "react";
 import * as XLSX from "xlsx";
+import { getLibraryExportData } from "@/actions/products";
 import type { Product } from "@/lib/types";
 
-/** 导出按钮：JSON / CSV / 导出整个库，纯前端生成下载 */
+/** 导出按钮：JSON / CSV / 导出整个库（整个库按需从服务端获取） */
 export default function ExportButtons({
   products,
-  fullList,
+  libraryId,
 }: {
   products: Product[];
-  fullList?: Product[];
+  libraryId: string;
 }) {
-  // 整个库的产品（不受搜索/分类筛选影响），用于"导出整个库"
-  const wholeLibrary = fullList && fullList.length > 0 ? fullList : products;
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
   function downloadFile(filename: string, content: Blob) {
     const url = URL.createObjectURL(content);
     const a = document.createElement("a");
@@ -22,9 +25,8 @@ export default function ExportButtons({
     URL.revokeObjectURL(url);
   }
 
-  function exportJson(useWhole = false) {
-    const src = useWhole ? wholeLibrary : products;
-    const data = src.map((p) => ({
+  function toJsonRows(src: { name: string; model: string; category: string; price: number | null; specs: { key: string; value: string }[]; notes: string; images: string[]; docs: { name: string; path: string }[] }[]) {
+    return src.map((p) => ({
       名称: p.name,
       型号: p.model,
       分类: p.category,
@@ -34,15 +36,17 @@ export default function ExportButtons({
       图片: p.images,
       文档: p.docs,
     }));
+  }
+
+  function exportJson() {
     downloadFile(
       `产品库_${new Date().toISOString().slice(0, 10)}.json`,
-      new Blob([JSON.stringify(data, null, 2)], { type: "application/json" })
+      new Blob([JSON.stringify(toJsonRows(products), null, 2)], { type: "application/json" })
     );
   }
 
-  function exportCsv(useWhole = false) {
-    const src = useWhole ? wholeLibrary : products;
-    const rows = src.map((p) => ({
+  function exportCsv() {
+    const rows = products.map((p) => ({
       名称: p.name,
       型号: p.model,
       分类: p.category,
@@ -58,18 +62,33 @@ export default function ExportButtons({
     );
   }
 
+  async function exportWholeLibrary() {
+    setExporting(true);
+    setExportError(null);
+    const res = await getLibraryExportData(libraryId);
+    setExporting(false);
+    if (res.error || !res.data) {
+      setExportError(res.error || "导出失败");
+      return;
+    }
+    downloadFile(
+      `产品库_全部_${new Date().toISOString().slice(0, 10)}.json`,
+      new Blob([JSON.stringify(toJsonRows(res.data), null, 2)], { type: "application/json" })
+    );
+  }
+
   return (
     <div className="space-y-2">
       <div className="flex gap-2">
         <button
-          onClick={() => exportJson(false)}
+          onClick={exportJson}
           disabled={products.length === 0}
           className="flex-1 rounded-xl bg-gray-100 py-2.5 text-sm font-medium text-gray-700 disabled:opacity-40"
         >
           导出当前列表 JSON
         </button>
         <button
-          onClick={() => exportCsv(false)}
+          onClick={exportCsv}
           disabled={products.length === 0}
           className="flex-1 rounded-xl bg-gray-100 py-2.5 text-sm font-medium text-gray-700 disabled:opacity-40"
         >
@@ -77,12 +96,13 @@ export default function ExportButtons({
         </button>
       </div>
       <button
-        onClick={() => exportJson(true)}
-        disabled={wholeLibrary.length === 0}
+        onClick={exportWholeLibrary}
+        disabled={exporting}
         className="w-full rounded-xl bg-blue-50 py-2.5 text-sm font-semibold text-blue-700 disabled:opacity-40"
       >
-        📦 导出整个产品库（JSON，共 {wholeLibrary.length} 个产品）
+        {exporting ? "正在获取数据…" : "📦 导出整个产品库（JSON）"}
       </button>
+      {exportError && <p className="text-xs text-red-500">{exportError}</p>}
     </div>
   );
 }
