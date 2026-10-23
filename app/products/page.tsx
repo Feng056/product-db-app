@@ -1,30 +1,44 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/actions/auth";
+import { ensureDefaultLibrary } from "@/actions/libraries";
 import BottomNav from "@/components/BottomNav";
 import ProductCard from "@/components/ProductCard";
 import ExportButtons from "@/components/ExportButtons";
 import SignOutButton from "@/components/SignOutButton";
+import LibraryBar from "@/components/LibraryBar";
 import { inputCls } from "@/components/SpecsEditor";
 import type { Product } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 type Props = {
-  searchParams: { q?: string; category?: string };
+  searchParams: { q?: string; category?: string; lib?: string };
 };
 
-/** 产品列表：搜索 + 分类筛选 + 导出 */
+/** 产品列表：产品库切换 + 搜索 + 分类筛选 + 导出 */
 export default async function ProductsPage({ searchParams }: Props) {
   const { user, profile } = await getCurrentProfile();
   const supabase = await createClient();
 
+  // 产品库：无则自动建默认库；lib 参数非法则回退到第一个
+  const libraries = await ensureDefaultLibrary();
+  const currentId =
+    libraries.find((l) => l.id === searchParams.lib)?.id ?? libraries[0].id;
+
   const q = (searchParams.q || "").trim();
   const category = searchParams.category || "";
+  const baseParams = [
+    q ? `q=${encodeURIComponent(q)}` : "",
+    category ? `category=${encodeURIComponent(category)}` : "",
+  ]
+    .filter(Boolean)
+    .join("&");
 
   let query = supabase
     .from("products")
     .select("*")
     .eq("user_id", user!.id)
+    .eq("library_id", currentId)
     .order("updated_at", { ascending: false });
 
   if (q) {
@@ -37,11 +51,12 @@ export default async function ProductsPage({ searchParams }: Props) {
   const { data: products } = await query;
   const list = (products || []) as Product[];
 
-  // 全部分类（用于筛选）
+  // 该库下的全部分类（用于筛选）
   const { data: allCats } = await supabase
     .from("products")
     .select("category")
-    .eq("user_id", user!.id);
+    .eq("user_id", user!.id)
+    .eq("library_id", currentId);
   const categories = Array.from(
     new Set((allCats || []).map((c) => c.category).filter(Boolean))
   ).sort();
@@ -63,8 +78,16 @@ export default async function ProductsPage({ searchParams }: Props) {
           <SignOutButton displayName={profile?.display_name} email={profile?.email} />
         </div>
 
+        {/* 产品库切换 */}
+        <LibraryBar
+          libraries={libraries}
+          currentId={currentId}
+          baseParams={baseParams}
+        />
+
         {/* 搜索 */}
         <form method="get" className="mt-3 flex gap-2">
+          <input type="hidden" name="lib" value={currentId} />
           <input
             name="q"
             defaultValue={q}
@@ -84,7 +107,7 @@ export default async function ProductsPage({ searchParams }: Props) {
         {categories.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2">
             <a
-              href="/products"
+              href={`/products?lib=${currentId}`}
               className={`rounded-full px-3 py-1.5 text-xs font-medium ${
                 !category ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600"
               }`}
@@ -94,7 +117,7 @@ export default async function ProductsPage({ searchParams }: Props) {
             {categories.map((c) => (
               <a
                 key={c}
-                href={`/products?category=${encodeURIComponent(c)}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
+                href={`/products?lib=${currentId}&category=${encodeURIComponent(c)}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
                 className={`rounded-full px-3 py-1.5 text-xs font-medium ${
                   category === c ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600"
                 }`}
@@ -126,7 +149,7 @@ export default async function ProductsPage({ searchParams }: Props) {
           )}
         </div>
       </main>
-      <BottomNav isAdmin={profile?.is_admin} />
+      <BottomNav isAdmin={profile?.is_admin} lib={currentId} />
     </>
   );
 }

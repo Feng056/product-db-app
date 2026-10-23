@@ -57,7 +57,7 @@ function parseSpecsCell(raw: unknown): SpecItem[] {
 
 type PreviewRow = ImportRow & { selected: boolean; index: number };
 
-export default function ImportClient() {
+export default function ImportClient({ libraryId }: { libraryId?: string }) {
   const [rows, setRows] = useState<PreviewRow[]>([]);
   const [fileName, setFileName] = useState("");
   const [importing, setImporting] = useState(false);
@@ -139,7 +139,7 @@ export default function ImportClient() {
     const selected = rows.filter((r) => r.selected);
     if (selected.length === 0) return;
     setImporting(true);
-    const res = await importProducts(selected);
+    const res = await importProducts(selected, libraryId);
     setImporting(false);
     setResult(res);
     if (!res.error) {

@@ -68,6 +68,28 @@ export async function createProduct(formData: FormData): Promise<ActionResult> {
   const name = String(formData.get("name") || "").trim();
   if (!name) return { error: "请填写产品名称" };
 
+  // 校验目标产品库归属；未传时用默认库（第一个）
+  const libraryIdRaw = String(formData.get("library_id") || "").trim();
+  let libraryId: string | null = null;
+  if (libraryIdRaw) {
+    const { data: lib } = await supabase
+      .from("libraries")
+      .select("id")
+      .eq("id", libraryIdRaw)
+      .eq("user_id", user.id)
+      .single();
+    if (!lib) return { error: "所选产品库无效" };
+    libraryId = lib.id;
+  } else {
+    const { data: libs } = await supabase
+      .from("libraries")
+      .select("id")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true })
+      .limit(1);
+    libraryId = libs?.[0]?.id || null;
+  }
+
   try {
     const imageFiles = (formData.getAll("newImages") as File[]).filter(
       (f) => f instanceof File && f.size > 0
@@ -81,6 +103,7 @@ export async function createProduct(formData: FormData): Promise<ActionResult> {
     const priceRaw = String(formData.get("price") || "").trim();
     const { error } = await supabase.from("products").insert({
       user_id: user.id,
+      library_id: libraryId,
       name,
       model: String(formData.get("model") || "").trim(),
       category: String(formData.get("category") || "").trim() || "未分类",

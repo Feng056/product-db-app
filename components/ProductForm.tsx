@@ -23,10 +23,12 @@ export default function ProductForm({
   product,
   imageUrls,
   action,
+  libraryId,
 }: {
   product?: Product;
   imageUrls?: Record<string, string>;
   action: (formData: FormData) => Promise<{ error?: string }>;
+  libraryId?: string;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [keepImages, setKeepImages] = useState<string[]>(product?.images || []);
@@ -46,6 +48,9 @@ export default function ProductForm({
   return (
     <form action={onSubmit} className="space-y-4">
       {product && <input type="hidden" name="id" value={product.id} />}
+      {libraryId && !product && (
+        <input type="hidden" name="library_id" value={libraryId} />
+      )}
 
       <div>
         <label className="mb-1 block text-sm font-medium text-gray-700">

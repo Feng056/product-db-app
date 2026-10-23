@@ -9,9 +9,19 @@ const TABS = [
   { href: "/import", label: "导入", icon: "📥" },
 ];
 
-/** 移动端底部导航 */
-export default function BottomNav({ isAdmin }: { isAdmin?: boolean }) {
+/** 移动端底部导航；lib 透传当前产品库 id 给新增/导入页 */
+export default function BottomNav({
+  isAdmin,
+  lib,
+}: {
+  isAdmin?: boolean;
+  lib?: string;
+}) {
   const pathname = usePathname();
+  const withLib = (href: string) =>
+    lib && (href === "/products/new" || href === "/import")
+      ? `${href}?lib=${lib}`
+      : href;
   const tabs = isAdmin
     ? [...TABS, { href: "/admin", label: "管理", icon: "⚙️" }]
     : TABS;
@@ -27,7 +37,7 @@ export default function BottomNav({ isAdmin }: { isAdmin?: boolean }) {
           return (
             <Link
               key={t.href}
-              href={t.href}
+              href={withLib(t.href)}
               className={`flex flex-col items-center gap-0.5 py-2.5 text-xs ${
                 active ? "font-semibold text-blue-600" : "text-gray-500"
               }`}

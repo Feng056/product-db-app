@@ -13,15 +13,33 @@ export type ImportResult = {
 };
 
 /**
- * 批量导入产品。跳过规则：同一用户下「名称 + 型号」已存在的视为重复。
+ * 批量导入产品。跳过规则：同一用户同一产品库下「名称 + 型号」已存在的视为重复。
  * specs/images/docs 导入暂不支持（导入页仅处理文本字段）。
  */
-export async function importProducts(rows: ImportRow[]): Promise<ImportResult> {
+export async function importProducts(
+  rows: ImportRow[],
+  libraryId?: string
+): Promise<ImportResult> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  // 如指定产品库，校验归属
+  let libId: string | null = null;
+  if (libraryId) {
+    const { data: lib } = await supabase
+      .from("libraries")
+      .select("id")
+      .eq("id", libraryId)
+      .eq("user_id", user.id)
+      .single();
+    if (!lib) {
+      return { imported: 0, skipped: 0, skippedNames: [], error: "所选产品库无效" };
+    }
+    libId = lib.id;
+  }
 
   const clean = rows
     .map((r) => ({
@@ -41,11 +59,13 @@ export async function importProducts(rows: ImportRow[]): Promise<ImportResult> {
     return { imported: 0, skipped: 0, skippedNames: [], error: "没有可导入的有效数据" };
   }
 
-  // 查出该用户已有的 名称+型号 组合
-  const { data: existing } = await supabase
+  // 查出该用户该库已有的 名称+型号 组合（未指定库时按用户全局去重）
+  let existingQuery = supabase
     .from("products")
     .select("name, model")
     .eq("user_id", user.id);
+  if (libId) existingQuery = existingQuery.eq("library_id", libId);
+  const { data: existing } = await existingQuery;
   const seen = new Set(
     (existing || []).map((p) => `${p.name}|||${p.model || ""}`)
   );
@@ -66,6 +86,7 @@ export async function importProducts(rows: ImportRow[]): Promise<ImportResult> {
     const { error } = await supabase.from("products").insert(
       toInsert.map((r) => ({
         user_id: user.id,
+        library_id: libId,
         name: r.name,
         model: r.model,
         category: r.category,

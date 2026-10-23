@@ -1,3 +1,12 @@
+/** 产品库：每个用户可有多个 */
+export type Library = {
+  id: string;
+  user_id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+};
+
 /** 规格参数：动态 key-value 列表 */
 export type SpecItem = { key: string; value: string };
 
@@ -7,6 +16,7 @@ export type DocItem = { name: string; path: string };
 export type Product = {
   id: string;
   user_id: string;
+  library_id: string | null;
   name: string;
   model: string;
   category: string;
