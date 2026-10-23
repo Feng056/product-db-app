@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 const TABS = [
   { href: "/products", label: "产品库", icon: "📦" },
   { href: "/products/new", label: "新增", icon: "➕" },
-  { href: "/import", label: "导入", icon: "📥" },
+  { href: "/import", label: "导入导出", icon: "📥" },
 ];
 
 /** 移动端底部导航；lib 透传当前产品库 id 给新增/导入页 */

@@ -275,3 +275,45 @@ export async function getLibraryExportData(
   if (error) return { error: error.message };
   return { data: (data || []) as LibraryExportData[] };
 }
+
+export type MultiLibraryExportItem = LibraryExportData & { library_name: string };
+
+/** 多库导出：一次获取多个产品库的产品（校验归属） */
+export async function getMultiLibraryExportData(
+  libraryIds: string[]
+): Promise<{ data?: MultiLibraryExportItem[]; error?: string }> {
+  const { supabase, user } = await requireUser();
+
+  const ids = Array.from(new Set(libraryIds.filter(Boolean))).slice(0, 20);
+  if (ids.length === 0) return { error: "请至少选择一个产品库" };
+
+  const { data: libs } = await supabase
+    .from("libraries")
+    .select("id, name")
+    .eq("user_id", user.id)
+    .in("id", ids);
+  const libMap = new Map(((libs || []) as { id: string; name: string }[]).map((l) => [l.id, l.name]));
+  if (libMap.size === 0) return { error: "所选产品库无效" };
+
+  const { data, error } = await supabase
+    .from("products")
+    .select("library_id, name, model, category, price, specs, notes, images, docs")
+    .eq("user_id", user.id)
+    .in("library_id", Array.from(libMap.keys()))
+    .order("library_id")
+    .order("updated_at", { ascending: false });
+  if (error) return { error: error.message };
+
+  const items = ((data || []) as (LibraryExportData & { library_id: string })[]).map((p) => ({
+    library_name: libMap.get(p.library_id) || "",
+    name: p.name,
+    model: p.model,
+    category: p.category,
+    price: p.price,
+    specs: p.specs,
+    notes: p.notes,
+    images: p.images,
+    docs: p.docs,
+  }));
+  return { data: items };
+}

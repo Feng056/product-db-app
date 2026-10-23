@@ -3,7 +3,6 @@ import { getCurrentProfile } from "@/actions/auth";
 import { ensureDefaultLibrary } from "@/actions/libraries";
 import BottomNav from "@/components/BottomNav";
 import ProductCard from "@/components/ProductCard";
-import ExportButtons from "@/components/ExportButtons";
 import SignOutButton from "@/components/SignOutButton";
 import LibraryBar from "@/components/LibraryBar";
 import LibrarySharePanel from "@/components/LibrarySharePanel";
@@ -144,11 +143,6 @@ export default async function ProductsPage({ searchParams }: Props) {
             ))}
           </div>
         )}
-
-        {/* 导出 */}
-        <div className="mt-3">
-          <ExportButtons products={list} libraryId={currentId} />
-        </div>
 
         {/* 列表 */}
         <div className="mt-4 space-y-3">

@@ -149,10 +149,10 @@ export default function ImportClient({ libraryId }: { libraryId?: string }) {
   }
 
   return (
-    <main className="page-container">
-      <h1 className="text-xl font-bold">一键导入</h1>
-      <p className="mt-1 text-xs text-gray-500">
+    <div>
+      <p className="text-xs text-gray-500">
         支持 Excel（.xlsx/.xls）、CSV、JSON。导入前可预览，名称+型号重复的会自动跳过。
+        {libraryId ? "" : "将导入到默认产品库。"}
       </p>
 
       <label className="mt-4 block cursor-pointer rounded-2xl border-2 border-dashed border-gray-200 bg-white p-8 text-center">
@@ -274,7 +274,7 @@ export default function ImportClient({ libraryId }: { libraryId?: string }) {
           )}
         </div>
       )}
-    </main>
+    </div>
   );
 }
 
