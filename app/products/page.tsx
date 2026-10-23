@@ -6,12 +6,14 @@ import ProductCard from "@/components/ProductCard";
 import LibraryBar from "@/components/LibraryBar";
 import LibrarySharePanel from "@/components/LibrarySharePanel";
 import FilterCollapse from "@/components/FilterCollapse";
+import ProductGridCard from "@/components/ProductGridCard";
+import SortSelect from "@/components/SortSelect";
 import type { Product } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 type Props = {
-  searchParams: { categories?: string; lib?: string; limit?: string; tags?: string };
+  searchParams: { categories?: string; lib?: string; limit?: string; tags?: string; view?: string; sort?: string };
 };
 
 const PAGE_SIZE = 30;
@@ -62,6 +64,15 @@ export default async function ProductsPage({ searchParams }: Props) {
     .map((s) => s.trim())
     .filter((s) => s && tagSet.has(s));
 
+  // 视图：list 列表 / grid 宫格
+  const view = searchParams.view === "grid" ? "grid" : "list";
+
+  // 排序：newest 最新 / price_asc 价格↑ / price_desc 价格↓ / name 名称
+  const validSorts = ["newest", "price_asc", "price_desc", "name"] as const;
+  const sort: (typeof validSorts)[number] = (validSorts as readonly string[]).includes(searchParams.sort || "")
+    ? (searchParams.sort as (typeof validSorts)[number])
+    : "newest";
+
   const baseParams = [
     selectedCategories.length > 0
       ? `categories=${encodeURIComponent(selectedCategories.join(","))}`
@@ -69,6 +80,8 @@ export default async function ProductsPage({ searchParams }: Props) {
     selectedTags.length > 0
       ? `tags=${encodeURIComponent(selectedTags.join(","))}`
       : "",
+    view === "grid" ? "view=grid" : "",
+    sort !== "newest" ? `sort=${sort}` : "",
   ]
     .filter(Boolean)
     .join("&");
@@ -79,6 +92,7 @@ export default async function ProductsPage({ searchParams }: Props) {
     p_categories: selectedCategories,
     p_tags: selectedTags,
     p_limit: limit,
+    p_sort: sort,
   });
   const parsed = (searchResult || { total: 0, items: [] }) as {
     total: number;
@@ -109,9 +123,41 @@ export default async function ProductsPage({ searchParams }: Props) {
       `lib=${currentId}`,
       cats.length > 0 ? `categories=${encodeURIComponent(cats.join(","))}` : "",
       tagList.length > 0 ? `tags=${encodeURIComponent(tagList.join(","))}` : "",
+      view === "grid" ? "view=grid" : "",
+      sort !== "newest" ? `sort=${sort}` : "",
     ]
       .filter(Boolean)
       .join("&");
+  // 视图切换链接（保留筛选条件）
+  const viewHref = (v: "list" | "grid") => {
+    const params = [
+      `lib=${currentId}`,
+      selectedCategories.length > 0
+        ? `categories=${encodeURIComponent(selectedCategories.join(","))}`
+        : "",
+      selectedTags.length > 0
+        ? `tags=${encodeURIComponent(selectedTags.join(","))}`
+        : "",
+      sort !== "newest" ? `sort=${sort}` : "",
+      v === "grid" ? "view=grid" : "",
+    ]
+      .filter(Boolean)
+      .join("&");
+    return `/products?${params}`;
+  };
+  // 排序切换的基础链接（不含 sort，切换时重置分页）
+  const sortBaseHref = `/products?${[
+    `lib=${currentId}`,
+    selectedCategories.length > 0
+      ? `categories=${encodeURIComponent(selectedCategories.join(","))}`
+      : "",
+    selectedTags.length > 0
+      ? `tags=${encodeURIComponent(selectedTags.join(","))}`
+      : "",
+    view === "grid" ? "view=grid" : "",
+  ]
+    .filter(Boolean)
+    .join("&")}`;
   type Chip = { key: string; label: string; active: boolean; href: string; check: boolean };
   const chips: Chip[] = [
     {
@@ -220,8 +266,47 @@ export default async function ProductsPage({ searchParams }: Props) {
           </FilterCollapse>
         )}
 
+        {/* 排序 + 视图切换 */}
+        <div className="mt-4 flex items-center justify-between">
+          <SortSelect current={sort} baseHref={sortBaseHref} />
+          <div className="flex rounded-full bg-gray-100 p-0.5 text-xs font-medium">
+            <a
+              href={viewHref("list")}
+              className={`rounded-full px-3 py-1.5 ${
+                view === "list" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"
+              }`}
+            >
+              ☰ 列表
+            </a>
+            <a
+              href={viewHref("grid")}
+              className={`rounded-full px-3 py-1.5 ${
+                view === "grid" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"
+              }`}
+            >
+              ⊞ 宫格
+            </a>
+          </div>
+        </div>
+
         {/* 列表 */}
-        <div className="mt-4 space-y-3">
+        {view === "grid" ? (
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            {list.length === 0 ? (
+              <div className="col-span-2 rounded-2xl bg-white p-10 text-center text-sm text-gray-400">
+                <div className="text-4xl">📦</div>
+                <p className="mt-3">
+                  {selectedCategories.length > 0 || selectedTags.length > 0 ? "没有符合条件的产品" : "还没有产品，去新增第一个吧"}
+                </p>
+              </div>
+            ) : (
+              list.map((p) => (
+                <ProductGridCard key={p.id} product={p} coverUrl={coverUrls[p.id]} />
+              ))
+            )}
+          </div>
+        ) : (
+        <div className="mt-3 space-y-3">
           {list.length === 0 ? (
             <div className="rounded-2xl bg-white p-10 text-center text-sm text-gray-400">
               <div className="text-4xl">📦</div>
@@ -235,6 +320,7 @@ export default async function ProductsPage({ searchParams }: Props) {
             ))
           )}
         </div>
+        )}
 
         {/* 分页：加载更多 */}
         {hasMore && (
