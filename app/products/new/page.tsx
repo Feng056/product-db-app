@@ -7,6 +7,7 @@ import BottomNav from "@/components/BottomNav";
 import ProductForm from "@/components/ProductForm";
 import CreateLibraryForm from "@/components/CreateLibraryForm";
 import LibraryShareManager from "@/components/LibraryShareManager";
+import LibraryManageList from "@/components/LibraryManageList";
 
 /** 新增页：顶部切换 商品 / 仓库 两个模块 */
 export default async function NewProductPage({
@@ -106,6 +107,12 @@ export default async function NewProductPage({
                 分享仓库
               </h2>
               <LibraryShareManager libraries={libraries} counts={counts} />
+            </section>
+            <section>
+              <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400">
+                管理仓库
+              </h2>
+              <LibraryManageList libraries={libraries} counts={counts} />
             </section>
           </div>
         )}
