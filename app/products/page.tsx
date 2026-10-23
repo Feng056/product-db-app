@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import Link from "next/link";
 import { getCurrentProfile } from "@/actions/auth";
 import { ensureDefaultLibrary } from "@/actions/libraries";
 import BottomNav from "@/components/BottomNav";
@@ -276,7 +277,7 @@ export default async function ProductsPage({ searchParams }: Props) {
         {(categories.length > 0 || tags.length > 0) && (
           <FilterCollapse activeCount={activeFilterCount}>
             {sortedChips.map((chip) => (
-              <a
+              <Link
                 key={chip.key}
                 href={chip.href}
                 className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${
@@ -287,7 +288,7 @@ export default async function ProductsPage({ searchParams }: Props) {
               >
                 {chip.active && chip.check ? "✓ " : ""}
                 {chip.label}
-              </a>
+              </Link>
             ))}
           </FilterCollapse>
         )}
@@ -296,22 +297,22 @@ export default async function ProductsPage({ searchParams }: Props) {
         <div className="mt-4 flex items-center justify-between">
           <SortSelect current={sort} baseHref={sortBaseHref} />
           <div className="flex rounded-full bg-gray-100 p-0.5 text-xs font-medium">
-            <a
+            <Link
               href={viewHref("list")}
               className={`rounded-full px-3 py-1.5 ${
                 view === "list" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"
               }`}
             >
               ☰ 列表
-            </a>
-            <a
+            </Link>
+            <Link
               href={viewHref("grid")}
               className={`rounded-full px-3 py-1.5 ${
                 view === "grid" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"
               }`}
             >
               ⊞ 宫格
-            </a>
+            </Link>
           </div>
         </div>
 
@@ -350,12 +351,12 @@ export default async function ProductsPage({ searchParams }: Props) {
 
         {/* 分页：加载更多 */}
         {hasMore && (
-          <a
+          <Link
             href={`/products?lib=${currentId}${baseParams ? `&${baseParams}` : ""}&limit=${limit + PAGE_SIZE}`}
             className="mt-4 block rounded-2xl bg-gray-100 py-3 text-center text-sm font-medium text-gray-600"
           >
             加载更多（还剩 {total - list.length} 个，共 {total} 个）
-          </a>
+          </Link>
         )}
       </main>
       <BottomNav isAdmin={profile?.is_admin} lib={currentId} />
