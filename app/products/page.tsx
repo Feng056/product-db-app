@@ -67,29 +67,19 @@ export default async function ProductsPage({ searchParams }: Props) {
     .filter(Boolean)
     .join("&");
 
-  // 列表只取展示需要的列 + 分页，附带总数
-  let query = supabase
-    .from("products")
-    .select("id, name, model, category, price, images", { count: "exact" })
-    .eq("user_id", user!.id)
-    .eq("library_id", currentId)
-    .order("updated_at", { ascending: false })
-    .limit(limit);
-
-  if (category) {
-    query = query.eq("category", category);
-  }
-  if (selectedTags.length > 0) {
-    // 标签多选：命中任一标签即符合（OR）
-    const orClause = selectedTags
-      .map((t) => `specs.cs.${JSON.stringify([{ key: "标签", value: t }])}`)
-      .join(",");
-    query = query.or(orClause);
-  }
-
-  const { data: products, count } = await query;
-  const list = (products || []) as Product[];
-  const total = count || 0;
+  // 列表查询走数据库函数 search_products（支持多标签 OR 筛选）
+  const { data: searchResult } = await supabase.rpc("search_products", {
+    p_library_id: currentId,
+    p_category: category || null,
+    p_tags: selectedTags,
+    p_limit: limit,
+  });
+  const parsed = (searchResult || { total: 0, items: [] }) as {
+    total: number;
+    items: Product[];
+  };
+  const list = parsed.items || [];
+  const total = parsed.total || 0;
   const hasMore = list.length < total;
 
   // 封面图 public URL
