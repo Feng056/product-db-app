@@ -11,7 +11,9 @@ export default function SignOutButton({
 }) {
   return (
     <button
-      onClick={() => signOut()}
+      onClick={() => {
+        if (window.confirm("确定要退出登录吗？")) signOut();
+      }}
       className="text-xs text-gray-400 underline"
       title={email || ""}
     >
