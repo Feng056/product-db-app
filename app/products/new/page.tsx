@@ -2,23 +2,41 @@ import Link from "next/link";
 import { getCurrentProfile } from "@/actions/auth";
 import { createProduct } from "@/actions/products";
 import { ensureDefaultLibrary } from "@/actions/libraries";
+import { createClient } from "@/lib/supabase/server";
 import BottomNav from "@/components/BottomNav";
 import ProductForm from "@/components/ProductForm";
 import CreateLibraryForm from "@/components/CreateLibraryForm";
-import LibrarySharePanel from "@/components/LibrarySharePanel";
+import LibraryShareManager from "@/components/LibraryShareManager";
 
-/** 新增页：新增产品 + 批量改价 + 产品库管理（新建/分享） */
+/** 新增页：顶部切换 商品 / 仓库 两个模块 */
 export default async function NewProductPage({
   searchParams,
 }: {
-  searchParams: { lib?: string };
+  searchParams: { lib?: string; tab?: string };
 }) {
-  const { profile } = await getCurrentProfile();
+  const { user, profile } = await getCurrentProfile();
   const libraries = await ensureDefaultLibrary();
   const lib = searchParams.lib || "";
+  const tab = searchParams.tab === "library" ? "library" : "product";
   const currentLib = libraries.find((l) => l.id === lib) || libraries[0];
   const libId = currentLib?.id || "";
-  const libName = currentLib?.name || "";
+  const libParam = libId ? `?lib=${libId}` : "";
+
+  // 各库产品数（仓库 tab 用）
+  const supabase = await createClient();
+  const { data: countsData } = await supabase
+    .from("products")
+    .select("library_id")
+    .eq("user_id", user!.id)
+    .in(
+      "library_id",
+      libraries.map((l) => l.id)
+    );
+  const counts: Record<string, number> = {};
+  for (const p of countsData || []) {
+    const id = (p as { library_id: string }).library_id;
+    counts[id] = (counts[id] || 0) + 1;
+  }
 
   return (
     <>
@@ -32,39 +50,65 @@ export default async function NewProductPage({
           </Link>
           <h1 className="text-xl font-bold">新增</h1>
         </div>
-        {profile?.is_admin && (
+
+        {/* 顶部模块切换 */}
+        <div className="grid grid-cols-2 gap-2 rounded-2xl bg-gray-100 p-1 dark:bg-gray-800">
           <Link
-            href={libId ? `/products/new/recognize?lib=${libId}` : "/products/new/recognize"}
-            className="mb-4 flex items-center justify-center gap-2 rounded-2xl bg-green-50 dark:bg-green-950 py-3 text-sm font-semibold text-green-700 dark:text-green-300"
+            href={`/products/new${libParam}${tab === "product" ? "" : ""}`}
+            className={`rounded-xl py-2.5 text-center text-sm font-semibold ${
+              tab === "product"
+                ? "bg-white text-blue-600 shadow-sm dark:bg-gray-900 dark:text-blue-400"
+                : "text-gray-500 dark:text-gray-400"
+            }`}
           >
-            📷 拍照识别（批量）
+            📦 商品
           </Link>
+          <Link
+            href={`/products/new${libParam ? `${libParam}&tab=library` : "?tab=library"}`}
+            className={`rounded-xl py-2.5 text-center text-sm font-semibold ${
+              tab === "library"
+                ? "bg-white text-blue-600 shadow-sm dark:bg-gray-900 dark:text-blue-400"
+                : "text-gray-500 dark:text-gray-400"
+            }`}
+          >
+            🗂️ 仓库
+          </Link>
+        </div>
+
+        {tab === "product" ? (
+          <div className="mt-4">
+            {profile?.is_admin && (
+              <Link
+                href={libId ? `/products/new/recognize?lib=${libId}` : "/products/new/recognize"}
+                className="mb-4 flex items-center justify-center gap-2 rounded-2xl bg-green-50 dark:bg-green-950 py-3 text-sm font-semibold text-green-700 dark:text-green-300"
+              >
+                📷 拍照识别（批量）
+              </Link>
+            )}
+            <Link
+              href={libId ? `/products/batch-price?lib=${libId}` : "/products/batch-price"}
+              className="mb-4 flex items-center justify-center gap-2 rounded-2xl bg-blue-50 dark:bg-blue-950 py-3 text-sm font-semibold text-blue-700 dark:text-blue-300"
+            >
+              💰 批量改价
+            </Link>
+            <ProductForm action={createProduct} libraryId={libId || undefined} />
+          </div>
+        ) : (
+          <div className="mt-4 space-y-4">
+            <section>
+              <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400">
+                新建仓库
+              </h2>
+              <CreateLibraryForm />
+            </section>
+            <section>
+              <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400">
+                分享仓库
+              </h2>
+              <LibraryShareManager libraries={libraries} counts={counts} />
+            </section>
+          </div>
         )}
-        <Link
-          href={libId ? `/products/batch-price?lib=${libId}` : "/products/batch-price"}
-          className="mb-4 flex items-center justify-center gap-2 rounded-2xl bg-blue-50 dark:bg-blue-950 py-3 text-sm font-semibold text-blue-700 dark:text-blue-300"
-        >
-          💰 批量改价
-        </Link>
-
-        {/* 产品库管理：新建 + 分享 */}
-        <section className="mb-4">
-          <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400">
-            产品库管理
-            {libName && <span className="ml-1 font-normal">（当前：{libName}）</span>}
-          </h2>
-          <CreateLibraryForm />
-          {libId && (
-            <div className="mt-3">
-              <LibrarySharePanel libraryId={libId} libraryName={libName} />
-            </div>
-          )}
-        </section>
-
-        <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400">
-          新增产品
-        </h2>
-        <ProductForm action={createProduct} libraryId={libId || undefined} />
       </main>
       <BottomNav isAdmin={profile?.is_admin} lib={libId || undefined} />
     </>
