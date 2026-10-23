@@ -13,6 +13,8 @@ export default async function RecognizePage({
 }) {
   const { user, profile } = await getCurrentProfile();
   if (!user) redirect("/login");
+  // 拍照识别仅管理员可用
+  if (!profile?.is_admin) redirect("/products");
 
   const libraries = await ensureDefaultLibrary();
   const libId = libraries.some((l) => l.id === searchParams.lib)

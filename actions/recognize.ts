@@ -26,12 +26,24 @@ async function requireUser() {
   return { supabase, user };
 }
 
+/** 仅管理员可用：拍照识别是管理员专属功能 */
+async function requireAdmin() {
+  const { supabase, user } = await requireUser();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("is_admin")
+    .eq("id", user.id)
+    .single();
+  if (!profile?.is_admin) redirect("/products");
+  return { supabase, user };
+}
+
 /** 调用 Gemini 识别单张产品照片（base64，不含 data: 前缀） */
 export async function recognizeImage(
   imageBase64: string,
   mimeType: string
 ): Promise<{ product?: RecognizedProduct; error?: string }> {
-  const { user } = await requireUser();
+  const { user } = await requireAdmin();
   void user;
 
   const apiKey = process.env.GEMINI_API_KEY;
@@ -102,7 +114,7 @@ export async function saveRecognizedProducts(
   products: RecognizedProduct[],
   libraryId: string
 ): Promise<SaveRecognizedResult> {
-  const { supabase, user } = await requireUser();
+  const { supabase, user } = await requireAdmin();
 
   // 校验产品库归属
   const { data: lib } = await supabase
