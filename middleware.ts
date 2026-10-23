@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "./lib/supabase/middleware";
 
 // 需要登录才能访问的路径
-const PROTECTED_PREFIXES = ["/products", "/import", "/admin"];
+const PROTECTED_PREFIXES = ["/products", "/import", "/settings"];
 // 已登录用户访问时跳转到产品列表
 const AUTH_PAGES = ["/login", "/register"];
 

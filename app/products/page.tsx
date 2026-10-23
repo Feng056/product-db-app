@@ -3,7 +3,6 @@ import { getCurrentProfile } from "@/actions/auth";
 import { ensureDefaultLibrary } from "@/actions/libraries";
 import BottomNav from "@/components/BottomNav";
 import ProductCard from "@/components/ProductCard";
-import SignOutButton from "@/components/SignOutButton";
 import LibraryBar from "@/components/LibraryBar";
 import LibrarySharePanel from "@/components/LibrarySharePanel";
 import type { Product } from "@/lib/types";
@@ -104,10 +103,7 @@ export default async function ProductsPage({ searchParams }: Props) {
   return (
     <>
       <main className="page-container">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold">产品库</h1>
-          <SignOutButton displayName={profile?.display_name} email={profile?.email} />
-        </div>
+        <h1 className="text-xl font-bold">产品库</h1>
 
         {/* 产品库切换 */}
         <LibraryBar

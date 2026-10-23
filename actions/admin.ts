@@ -51,7 +51,7 @@ export async function createInviteCode(formData: FormData): Promise<ActionResult
     return { error: `创建失败：${error.message}` };
   }
 
-  revalidatePath("/admin");
+  revalidatePath("/settings");
   return { message: `邀请码 ${code} 创建成功` };
 }
 
@@ -63,7 +63,7 @@ export async function toggleInviteCode(id: string, isActive: boolean): Promise<A
     .update({ is_active: !isActive })
     .eq("id", id);
   if (error) return { error: error.message };
-  revalidatePath("/admin");
+  revalidatePath("/settings");
   return {};
 }
 
@@ -72,6 +72,6 @@ export async function deleteInviteCode(id: string): Promise<ActionResult> {
   const { supabase } = await requireAdmin();
   const { error } = await supabase.from("invite_codes").delete().eq("id", id);
   if (error) return { error: `删除失败：${error.message}（可能已有用户使用该码）` };
-  revalidatePath("/admin");
+  revalidatePath("/settings");
   return {};
 }

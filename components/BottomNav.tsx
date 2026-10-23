@@ -7,6 +7,7 @@ const TABS = [
   { href: "/products", label: "产品库", icon: "📦" },
   { href: "/products/new", label: "新增", icon: "➕" },
   { href: "/import", label: "导入导出", icon: "📥" },
+  { href: "/settings", label: "设置", icon: "⚙️" },
 ];
 
 /** 移动端底部导航；lib 透传当前产品库 id 给新增/导入页 */
@@ -22,14 +23,11 @@ export default function BottomNav({
     lib && (href === "/products/new" || href === "/import")
       ? `${href}?lib=${lib}`
       : href;
-  const tabs = isAdmin
-    ? [...TABS, { href: "/admin", label: "管理", icon: "⚙️" }]
-    : TABS;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 bg-white/95 backdrop-blur">
       <div className="mx-auto grid max-w-md grid-cols-4">
-        {tabs.map((t) => {
+        {TABS.map((t) => {
           const active =
             t.href === "/products"
               ? pathname === "/products"

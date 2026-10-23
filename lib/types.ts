@@ -33,6 +33,7 @@ export type Profile = {
   id: string;
   email: string | null;
   display_name: string;
+  avatar_path: string;
   is_admin: boolean;
   invite_code_id: string | null;
   created_at: string;
