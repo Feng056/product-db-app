@@ -33,6 +33,25 @@ export async function updateDisplayName(
   return {};
 }
 
+/** 设置产品库右上角展示：off / avatar / name */
+export async function updateHeaderDisplay(
+  formData: FormData
+): Promise<ActionResult> {
+  const { supabase, user } = await requireUser();
+  const value = String(formData.get("header_display") || "");
+  if (!["off", "avatar", "name"].includes(value)) {
+    return { error: "无效的选项" };
+  }
+  const { error } = await supabase
+    .from("profiles")
+    .update({ header_display: value })
+    .eq("id", user.id);
+  if (error) return { error: error.message };
+  revalidatePath("/settings");
+  revalidatePath("/products");
+  return {};
+}
+
 /** 更换头像：上传新图，删除旧图 */
 export async function updateAvatar(
   formData: FormData

@@ -100,10 +100,39 @@ export default async function ProductsPage({ searchParams }: Props) {
       : null;
   }
 
+  // 右上角展示：头像 / 名称（可在设置中切换）
+  const headerDisplay =
+    (profile as { header_display?: string } | null)?.header_display || "name";
+  const avatarPath =
+    (profile as { avatar_path?: string } | null)?.avatar_path || "";
+  const headerAvatarUrl = avatarPath
+    ? supabase.storage.from("avatars").getPublicUrl(avatarPath).data.publicUrl
+    : null;
+
   return (
     <>
       <main className="page-container">
-        <h1 className="text-xl font-bold">产品库</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold">产品库</h1>
+          {headerDisplay === "avatar" &&
+            (headerAvatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={headerAvatarUrl}
+                alt="头像"
+                className="h-9 w-9 rounded-full object-cover"
+              />
+            ) : (
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-600">
+                {(profile?.display_name || profile?.email || "我").slice(0, 1)}
+              </div>
+            ))}
+          {headerDisplay === "name" && (
+            <span className="max-w-[40%] truncate text-sm text-gray-500">
+              {profile?.display_name || profile?.email}
+            </span>
+          )}
+        </div>
 
         {/* 产品库切换 */}
         <LibraryBar

@@ -34,6 +34,7 @@ export type Profile = {
   email: string | null;
   display_name: string;
   avatar_path: string;
+  header_display: string;
   is_admin: boolean;
   invite_code_id: string | null;
   created_at: string;

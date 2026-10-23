@@ -105,6 +105,49 @@ export default async function SettingsPage({
           </div>
         </section>
 
+        {/* 显示设置 */}
+        <section className="mt-6">
+          <h2 className="mb-2 text-sm font-semibold text-gray-500">显示设置</h2>
+          <div className="rounded-2xl bg-white p-4">
+            <div className="mb-2 text-sm font-medium text-gray-700">
+              产品库右上角展示
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { value: "off", label: "关闭" },
+                { value: "avatar", label: "仅头像" },
+                { value: "name", label: "仅名称" },
+              ].map((opt) => {
+                const active =
+                  ((profile as { header_display?: string } | null)?.header_display || "name") ===
+                  opt.value;
+                return (
+                  <form
+                    key={opt.value}
+                    action={async (formData: FormData) => {
+                      "use server";
+                      const { updateHeaderDisplay } = await import("@/actions/profile");
+                      await updateHeaderDisplay(formData);
+                    }}
+                  >
+                    <input type="hidden" name="header_display" value={opt.value} />
+                    <button
+                      type="submit"
+                      className={`w-full rounded-xl border-2 py-2.5 text-sm font-medium ${
+                        active
+                          ? "border-blue-600 bg-blue-50 text-blue-700"
+                          : "border-transparent bg-gray-50 text-gray-600"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  </form>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
         {/* 管理（仅管理员） */}
         {isAdmin && (
           <section className="mt-6">
