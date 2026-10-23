@@ -32,7 +32,7 @@ export default function SearchBox({
 
   return (
     <div className="mt-3 flex items-center gap-2">
-      <div className="flex flex-1 items-center rounded-full border border-gray-200 bg-white pl-4 focus-within:border-blue-500 dark:border-gray-700 dark:bg-gray-900">
+      <div className="flex min-w-0 flex-1 items-center rounded-full border border-gray-200 bg-white pl-4 focus-within:border-blue-500 dark:border-gray-700 dark:bg-gray-900">
         <input
           value={value}
           onChange={(e) => setValue(e.target.value)}
