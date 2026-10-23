@@ -1,0 +1,54 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { signIn } from "@/actions/auth";
+import { inputCls } from "@/components/SpecsEditor";
+
+export default function LoginPage() {
+  const [error, setError] = useState<string | null>(null);
+
+  async function onSubmit(formData: FormData) {
+    setError(null);
+    const res = await signIn(formData);
+    if (res?.error) setError(res.error);
+  }
+
+  return (
+    <main className="page-container">
+      <div className="mt-10 text-center">
+        <div className="text-5xl">📦</div>
+        <h1 className="mt-3 text-2xl font-bold">登录产品资料库</h1>
+      </div>
+
+      <form action={onSubmit} className="mt-8 space-y-4">
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">邮箱</label>
+          <input name="email" type="email" required placeholder="you@example.com" className={inputCls} />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">密码</label>
+          <input name="password" type="password" required placeholder="请输入密码" className={inputCls} />
+        </div>
+
+        {error && (
+          <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
+        )}
+
+        <button
+          type="submit"
+          className="w-full rounded-2xl bg-blue-600 py-3.5 text-base font-semibold text-white"
+        >
+          登录
+        </button>
+      </form>
+
+      <p className="mt-6 text-center text-sm text-gray-500">
+        还没有账号？
+        <Link href="/register" className="font-medium text-blue-600">
+          去注册（需要邀请码）
+        </Link>
+      </p>
+    </main>
+  );
+}

@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background-color: #f7f8fa;
+  color: #111827;
+}
+
+/* 移动端优先：内容区最大宽度，底部给导航留空间 */
+.page-container {
+  @apply mx-auto w-full max-w-md px-4 pb-28 pt-5;
+}
