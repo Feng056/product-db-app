@@ -11,7 +11,7 @@ import type { Product } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 type Props = {
-  searchParams: { category?: string; lib?: string; limit?: string; tags?: string };
+  searchParams: { categories?: string; lib?: string; limit?: string; tags?: string };
 };
 
 const PAGE_SIZE = 30;
@@ -26,7 +26,11 @@ export default async function ProductsPage({ searchParams }: Props) {
   const currentId =
     libraries.find((l) => l.id === searchParams.lib)?.id ?? libraries[0].id;
 
-  const category = searchParams.category || "";
+  // URL 中选中的分类（多选，只保留有效的）
+  const selectedCategories = (searchParams.categories || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s);
   const limit = Math.min(
     Math.max(parseInt(searchParams.limit || "", 10) || PAGE_SIZE, PAGE_SIZE),
     1000
@@ -59,7 +63,9 @@ export default async function ProductsPage({ searchParams }: Props) {
     .filter((s) => s && tagSet.has(s));
 
   const baseParams = [
-    category ? `category=${encodeURIComponent(category)}` : "",
+    selectedCategories.length > 0
+      ? `categories=${encodeURIComponent(selectedCategories.join(","))}`
+      : "",
     selectedTags.length > 0
       ? `tags=${encodeURIComponent(selectedTags.join(","))}`
       : "",
@@ -67,10 +73,10 @@ export default async function ProductsPage({ searchParams }: Props) {
     .filter(Boolean)
     .join("&");
 
-  // 列表查询走数据库函数 search_products（支持多标签 OR 筛选）
+  // 列表查询走数据库函数 search_products（多分类 + 多标签 OR 筛选）
   const { data: searchResult } = await supabase.rpc("search_products", {
     p_library_id: currentId,
-    p_category: category || null,
+    p_categories: selectedCategories,
     p_tags: selectedTags,
     p_limit: limit,
   });
@@ -91,43 +97,53 @@ export default async function ProductsPage({ searchParams }: Props) {
       : null;
   }
 
-  // 统一筛选 chips：分类（单选）+ 标签（多选），选中的排前面
+  // 统一筛选 chips：分类（多选）+ 标签（多选），选中的排前面；标签加 # 前缀以示区分
+  const catsParam = selectedCategories.length > 0
+    ? `categories=${encodeURIComponent(selectedCategories.join(","))}`
+    : "";
   const tagsParam = selectedTags.length > 0
     ? `tags=${encodeURIComponent(selectedTags.join(","))}`
     : "";
+  const buildParams = (cats: string[], tagList: string[]) =>
+    [
+      `lib=${currentId}`,
+      cats.length > 0 ? `categories=${encodeURIComponent(cats.join(","))}` : "",
+      tagList.length > 0 ? `tags=${encodeURIComponent(tagList.join(","))}` : "",
+    ]
+      .filter(Boolean)
+      .join("&");
   type Chip = { key: string; label: string; active: boolean; href: string; check: boolean };
   const chips: Chip[] = [
     {
       key: "cat-all",
       label: "全部",
-      active: !category,
+      active: selectedCategories.length === 0,
       href: `/products?lib=${currentId}${tagsParam ? `&${tagsParam}` : ""}`,
       check: false,
     },
-    ...categories.map((c) => ({
-      key: `cat-${c}`,
-      label: c,
-      active: category === c,
-      href: `/products?lib=${currentId}&category=${encodeURIComponent(c)}${tagsParam ? `&${tagsParam}` : ""}`,
-      check: false,
-    })),
+    ...categories.map((c) => {
+      const active = selectedCategories.includes(c);
+      const next = active
+        ? selectedCategories.filter((x) => x !== c)
+        : [...selectedCategories, c];
+      return {
+        key: `cat-${c}`,
+        label: c,
+        active,
+        href: `/products?${buildParams(next, selectedTags)}`,
+        check: true,
+      };
+    }),
     ...tags.map((t) => {
       const active = selectedTags.includes(t);
       const next = active
         ? selectedTags.filter((x) => x !== t)
         : [...selectedTags, t];
-      const params = [
-        `lib=${currentId}`,
-        category ? `category=${encodeURIComponent(category)}` : "",
-        next.length > 0 ? `tags=${encodeURIComponent(next.join(","))}` : "",
-      ]
-        .filter(Boolean)
-        .join("&");
       return {
         key: `tag-${t}`,
-        label: t,
+        label: `#${t}`,
         active,
-        href: `/products?${params}`,
+        href: `/products?${buildParams(selectedCategories, next)}`,
         check: true,
       };
     }),
@@ -137,7 +153,7 @@ export default async function ProductsPage({ searchParams }: Props) {
     ...chips.filter((c) => !c.active),
   ];
   const activeFilterCount =
-    (category ? 1 : 0) + selectedTags.length;
+    selectedCategories.length + selectedTags.length;
   const headerDisplay =
     (profile as { header_display?: string } | null)?.header_display || "name";
   const avatarPath =
@@ -210,7 +226,7 @@ export default async function ProductsPage({ searchParams }: Props) {
             <div className="rounded-2xl bg-white p-10 text-center text-sm text-gray-400">
               <div className="text-4xl">📦</div>
               <p className="mt-3">
-                {category || selectedTags.length > 0 ? "没有符合条件的产品" : "还没有产品，去新增第一个吧"}
+                {selectedCategories.length > 0 || selectedTags.length > 0 ? "没有符合条件的产品" : "还没有产品，去新增第一个吧"}
               </p>
             </div>
           ) : (
