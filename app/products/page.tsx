@@ -5,7 +5,6 @@ import { ensureDefaultLibrary } from "@/actions/libraries";
 import BottomNav from "@/components/BottomNav";
 import ProductCard from "@/components/ProductCard";
 import LibraryBar from "@/components/LibraryBar";
-import LibrarySharePanel from "@/components/LibrarySharePanel";
 import FilterCollapse from "@/components/FilterCollapse";
 import ProductGridCard from "@/components/ProductGridCard";
 import SortSelect from "@/components/SortSelect";
@@ -243,7 +242,9 @@ export default async function ProductsPage({ searchParams }: Props) {
     <>
       <main className="page-container">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold">产品库</h1>
+          <h1 className="max-w-[60%] truncate text-xl font-bold">
+            {libraries.find((l) => l.id === currentId)?.name || "产品库"}
+          </h1>
           {headerDisplay === "avatar" &&
             (headerAvatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -272,12 +273,6 @@ export default async function ProductsPage({ searchParams }: Props) {
           libraries={libraries}
           currentId={currentId}
           baseParams={baseParams}
-        />
-
-        {/* 分享当前产品库 */}
-        <LibrarySharePanel
-          libraryId={currentId}
-          libraryName={libraries.find((l) => l.id === currentId)?.name || ""}
         />
 
         {/* 统一筛选：分类（单选）+ 标签（多选），默认显示一排 */}

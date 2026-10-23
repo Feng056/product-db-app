@@ -3,13 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-  createLibrary,
   renameLibrary,
   deleteLibrary,
 } from "@/actions/libraries";
 import type { Library } from "@/lib/types";
 
-/** 产品库切换条：横向滚动 pills + 新建 + 管理（改名/删除） */
+/** 产品库切换条：横向滚动 pills + 管理（改名/删除） */
 export default function LibraryBar({
   libraries,
   currentId,
@@ -19,20 +18,12 @@ export default function LibraryBar({
   currentId: string;
   baseParams: string;
 }) {
-  const [adding, setAdding] = useState(false);
   const [managing, setManaging] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const hrefFor = (id: string) =>
     `/products?lib=${id}${baseParams ? `&${baseParams}` : ""}`;
-
-  async function onCreate(formData: FormData) {
-    setError(null);
-    const res = await createLibrary(formData);
-    if (res?.error) setError(res.error);
-    else setAdding(false);
-  }
 
   async function onRename(formData: FormData) {
     setError(null);
@@ -126,45 +117,6 @@ export default function LibraryBar({
             </div>
           );
         })}
-
-        {/* 新建产品库 */}
-        {adding ? (
-          <form
-            action={onCreate}
-            className="flex shrink-0 items-center gap-1"
-          >
-            <input
-              name="name"
-              maxLength={30}
-              required
-              autoFocus
-              placeholder="新产品库名称"
-              className="w-28 rounded-full border border-blue-300 px-3 py-1.5 text-xs"
-            />
-            <button
-              type="submit"
-              className="shrink-0 rounded-full bg-blue-600 px-2.5 py-1.5 text-xs font-medium text-white"
-            >
-              确定
-            </button>
-            <button
-              type="button"
-              onClick={() => setAdding(false)}
-              className="shrink-0 text-xs text-gray-400 dark:text-gray-500"
-            >
-              取消
-            </button>
-          </form>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setAdding(true)}
-            title="新建产品库"
-            className="shrink-0 rounded-full bg-gray-100 dark:bg-gray-800 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 "
-          >
-            ＋
-          </button>
-        )}
 
         {/* 管理模式切换 */}
         <button
