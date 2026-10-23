@@ -5,6 +5,7 @@ import BottomNav from "@/components/BottomNav";
 import ProductCard from "@/components/ProductCard";
 import LibraryBar from "@/components/LibraryBar";
 import LibrarySharePanel from "@/components/LibrarySharePanel";
+import FilterCollapse from "@/components/FilterCollapse";
 import type { Product } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -100,7 +101,53 @@ export default async function ProductsPage({ searchParams }: Props) {
       : null;
   }
 
-  // 右上角展示：头像 / 名称（可在设置中切换）
+  // 统一筛选 chips：分类（单选）+ 标签（多选），选中的排前面
+  const tagsParam = selectedTags.length > 0
+    ? `tags=${encodeURIComponent(selectedTags.join(","))}`
+    : "";
+  type Chip = { key: string; label: string; active: boolean; href: string; check: boolean };
+  const chips: Chip[] = [
+    {
+      key: "cat-all",
+      label: "全部",
+      active: !category,
+      href: `/products?lib=${currentId}${tagsParam ? `&${tagsParam}` : ""}`,
+      check: false,
+    },
+    ...categories.map((c) => ({
+      key: `cat-${c}`,
+      label: c,
+      active: category === c,
+      href: `/products?lib=${currentId}&category=${encodeURIComponent(c)}${tagsParam ? `&${tagsParam}` : ""}`,
+      check: false,
+    })),
+    ...tags.map((t) => {
+      const active = selectedTags.includes(t);
+      const next = active
+        ? selectedTags.filter((x) => x !== t)
+        : [...selectedTags, t];
+      const params = [
+        `lib=${currentId}`,
+        category ? `category=${encodeURIComponent(category)}` : "",
+        next.length > 0 ? `tags=${encodeURIComponent(next.join(","))}` : "",
+      ]
+        .filter(Boolean)
+        .join("&");
+      return {
+        key: `tag-${t}`,
+        label: t,
+        active,
+        href: `/products?${params}`,
+        check: true,
+      };
+    }),
+  ];
+  const sortedChips = [
+    ...chips.filter((c) => c.active),
+    ...chips.filter((c) => !c.active),
+  ];
+  const activeFilterCount =
+    (category ? 1 : 0) + selectedTags.length;
   const headerDisplay =
     (profile as { header_display?: string } | null)?.header_display || "name";
   const avatarPath =
@@ -147,79 +194,24 @@ export default async function ProductsPage({ searchParams }: Props) {
           libraryName={libraries.find((l) => l.id === currentId)?.name || ""}
         />
 
-        {/* 标签筛选（多选） */}
-        {tags.length > 0 && (
-          <div className="mt-3">
-            <div className="mb-1.5 flex items-center justify-between">
-              <span className="text-xs font-medium text-gray-500">
-                标签筛选{selectedTags.length > 0 && `（已选 ${selectedTags.length}）`}
-              </span>
-              {selectedTags.length > 0 && (
-                <a
-                  href={`/products?lib=${currentId}${category ? `&category=${encodeURIComponent(category)}` : ""}`}
-                  className="text-xs text-blue-600"
-                >
-                  清除
-                </a>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {tags.map((t) => {
-                const active = selectedTags.includes(t);
-                const next = active
-                  ? selectedTags.filter((x) => x !== t)
-                  : [...selectedTags, t];
-                const params = [
-                  `lib=${currentId}`,
-                  category ? `category=${encodeURIComponent(category)}` : "",
-                  next.length > 0 ? `tags=${encodeURIComponent(next.join(","))}` : "",
-                ]
-                  .filter(Boolean)
-                  .join("&");
-                return (
-                  <a
-                    key={t}
-                    href={`/products?${params}`}
-                    className={`rounded-full px-3 py-1.5 text-xs font-medium ${
-                      active
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-100 text-gray-600"
-                    }`}
-                  >
-                    {active ? "✓ " : ""}{t}
-                  </a>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* 分类筛选 */}
-        {categories.length > 0 && (
-          <div className="mt-3">
-            <div className="mb-1.5 text-xs font-medium text-gray-500">分类</div>
-            <div className="flex flex-wrap gap-2">
-            <a
-              href={`/products?lib=${currentId}${selectedTags.length > 0 ? `&tags=${encodeURIComponent(selectedTags.join(","))}` : ""}`}
-              className={`rounded-full px-3 py-1.5 text-xs font-medium ${
-                !category ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600"
-              }`}
-            >
-              全部
-            </a>
-            {categories.map((c) => (
+        {/* 统一筛选：分类（单选）+ 标签（多选），默认显示一排 */}
+        {(categories.length > 0 || tags.length > 0) && (
+          <FilterCollapse activeCount={activeFilterCount}>
+            {sortedChips.map((chip) => (
               <a
-                key={c}
-                href={`/products?lib=${currentId}&category=${encodeURIComponent(c)}${selectedTags.length > 0 ? `&tags=${encodeURIComponent(selectedTags.join(","))}` : ""}`}
-                className={`rounded-full px-3 py-1.5 text-xs font-medium ${
-                  category === c ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600"
+                key={chip.key}
+                href={chip.href}
+                className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${
+                  chip.active
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-100 text-gray-600"
                 }`}
               >
-                {c}
+                {chip.active && chip.check ? "✓ " : ""}
+                {chip.label}
               </a>
             ))}
-            </div>
-          </div>
+          </FilterCollapse>
         )}
 
         {/* 列表 */}
