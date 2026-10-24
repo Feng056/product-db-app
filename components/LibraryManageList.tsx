@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { renameLibrary, deleteLibrary, requestPublish, unpublishLibrary, setLibraryTimeDisplay } from "@/actions/libraries";
 import { pushSubscriptionUpdate, unsubscribeFromLibrary } from "@/actions/shares";
+import PublishDialog from "./PublishDialog";
 import type { Library } from "@/lib/types";
 
 /** 仓库管理：改名 / 删除 / 推送订阅更新 */
@@ -22,6 +23,7 @@ export default function LibraryManageList({
   const [pushingId, setPushingId] = useState<string | null>(null);
   const [unsubscribingId, setUnsubscribingId] = useState<string | null>(null);
   const [pushMsg, setPushMsg] = useState("");
+  const [publishLib, setPublishLib] = useState<{ id: string; name: string; isUpdate: boolean } | null>(null);
 
   async function onRename(formData: FormData) {
     setError(null);
@@ -58,12 +60,9 @@ export default function LibraryManageList({
     }
   }
 
-  async function onRequestPublish(id: string, name: string) {
-    if (!window.confirm(`申请将「${name}」发布为公共库？审核通过后所有人可见并可订阅。`)) return;
-    setError(null);
-    const res = await requestPublish(id);
-    if (res.error) setError(res.error);
-    else if (res.message) setPushMsg(res.message);
+  async function onRequestPublish(id: string, name: string, isUpdate: boolean) {
+    // 打开分类选择弹窗
+    setPublishLib({ id, name, isUpdate });
   }
 
   async function onUnpublish(id: string, name: string, isPublished: boolean) {
@@ -190,7 +189,7 @@ export default function LibraryManageList({
               <>
                 {(!lib.publish_status || lib.publish_status === "private" || lib.publish_status === "rejected") && (
                   <button
-                    onClick={() => onRequestPublish(lib.id, lib.name)}
+                    onClick={() => onRequestPublish(lib.id, lib.name, false)}
                     className="shrink-0 rounded-lg bg-green-50 px-2.5 py-1.5 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400"
                   >
                     发布
@@ -198,7 +197,7 @@ export default function LibraryManageList({
                 )}
                 {lib.publish_status === "published" && (
                   <button
-                    onClick={() => onRequestPublish(lib.id, lib.name)}
+                    onClick={() => onRequestPublish(lib.id, lib.name, true)}
                     className="shrink-0 rounded-lg bg-green-50 px-2.5 py-1.5 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400"
                   >
                     申请更新
@@ -252,6 +251,19 @@ export default function LibraryManageList({
 
       {error && <p className="mt-2 text-center text-xs text-red-500">{error}</p>}
       {pushMsg && <p className="mt-2 text-center text-xs text-green-600">{pushMsg}</p>}
+
+      {publishLib && (
+        <PublishDialog
+          libraryId={publishLib.id}
+          libraryName={publishLib.name}
+          isUpdate={publishLib.isUpdate}
+          onClose={() => setPublishLib(null)}
+          onDone={(msg) => {
+            setPushMsg(msg);
+            setTimeout(() => setPushMsg(""), 3000);
+          }}
+        />
+      )}
     </div>
   );
 }

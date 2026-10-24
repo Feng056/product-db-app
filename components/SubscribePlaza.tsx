@@ -65,7 +65,29 @@ export default function SubscribePlaza({ libs }: { libs: PublishedLib[] }) {
                   </div>
                   <div className="text-xs text-gray-400">
                     {lib.owner_name} · {lib.product_count} 个产品
+                    {lib.publish_categories && lib.publish_categories.length > 0 && (
+                      <span className="ml-1 text-purple-600 dark:text-purple-400">
+                        · 仅{lib.publish_categories.length}个分类
+                      </span>
+                    )}
                   </div>
+                  {lib.publish_categories && lib.publish_categories.length > 0 && (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {lib.publish_categories.slice(0, 6).map((c) => (
+                        <span
+                          key={c}
+                          className="rounded-full bg-purple-100 px-2 py-0.5 text-xs text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
+                        >
+                          {c}
+                        </span>
+                      ))}
+                      {lib.publish_categories.length > 6 && (
+                        <span className="text-xs text-gray-400">
+                          等{lib.publish_categories.length}个分类
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="mt-2 flex gap-2">

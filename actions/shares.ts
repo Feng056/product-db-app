@@ -210,13 +210,19 @@ async function copyProductsToLibrary(
   supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
   sourceLibraryId: string,
   targetLibraryId: string,
-  targetUserId: string
+  targetUserId: string,
+  categories?: string[] | null
 ): Promise<number> {
   // 读源库产品（分享者已通过 get_library_share 授权，或主人自己）
-  const { data: products } = await supabase
+  // categories 非空时只复制这些分类的产品
+  let query = supabase
     .from("products")
     .select("name, model, category, price, specs, notes, images")
     .eq("library_id", sourceLibraryId);
+  if (categories && categories.length > 0) {
+    query = query.in("category", categories);
+  }
+  const { data: products } = await query;
   let copied = 0;
   for (const p of products || []) {
     const newImages: string[] = [];
@@ -283,7 +289,7 @@ export async function subscribeToLibraries(
     // 不能订阅自己的库
     const { data: srcLib } = await supabase
       .from("libraries")
-      .select("user_id, time_display")
+      .select("user_id, time_display, publish_categories")
       .eq("id", sourceId)
       .single();
     if (!srcLib || srcLib.user_id === user.id) continue;
@@ -308,7 +314,13 @@ export async function subscribeToLibraries(
       .single();
     if (libError || !newLib) continue;
 
-    await copyProductsToLibrary(supabase, sourceId, newLib.id, user.id);
+    await copyProductsToLibrary(
+      supabase,
+      sourceId,
+      newLib.id,
+      user.id,
+      (srcLib as { publish_categories?: string[] | null }).publish_categories
+    );
     await supabase.from("library_subscriptions").insert({
       library_id: sourceId,
       copy_library_id: newLib.id,
@@ -335,14 +347,15 @@ export async function pushToAllSubscribers(
   // 同步发布者的时间显示设置到副本
   const { data: srcLib } = await supabase
     .from("libraries")
-    .select("time_display")
+    .select("time_display, publish_categories")
     .eq("id", sourceLibraryId)
     .single();
   const timeDisplay = (srcLib as { time_display?: string } | null)?.time_display || "both";
+  const publishCategories = (srcLib as { publish_categories?: string[] | null } | null)?.publish_categories || null;
   let updated = 0;
   for (const s of subs || []) {
     if (!s.copy_library_id) continue;
-    await syncCopy(supabase, sourceLibraryId, s.copy_library_id, s.subscriber_id);
+    await syncCopy(supabase, sourceLibraryId, s.copy_library_id, s.subscriber_id, publishCategories);
     await supabase
       .from("libraries")
       .update({ time_display: timeDisplay })
@@ -361,10 +374,11 @@ async function syncCopy(
   supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
   sourceId: string,
   copyId: string,
-  copyOwnerId: string
+  copyOwnerId: string,
+  categories?: string[] | null
 ): Promise<number> {
   await supabase.from("products").delete().eq("library_id", copyId);
-  return copyProductsToLibrary(supabase, sourceId, copyId, copyOwnerId);
+  return copyProductsToLibrary(supabase, sourceId, copyId, copyOwnerId, categories);
 }
 
 /** 主人一键推送：把源库最新内容覆盖到所有订阅者的副本 */
@@ -398,7 +412,13 @@ export async function pullSubscriptionUpdate(
     .eq("subscriber_id", user.id)
     .single();
   if (!sub) return { updated: 0, error: "不是订阅的库" };
-  const count = await syncCopy(supabase, sub.library_id, copyLibraryId, user.id);
+  const { data: srcLib } = await supabase
+    .from("libraries")
+    .select("publish_categories")
+    .eq("id", sub.library_id)
+    .single();
+  const categories = (srcLib as { publish_categories?: string[] | null } | null)?.publish_categories || null;
+  const count = await syncCopy(supabase, sub.library_id, copyLibraryId, user.id, categories);
   revalidatePath("/products");
   return { updated: count };
 }
@@ -468,7 +488,7 @@ export async function subscribeToPublished(
   // 校验是已发布的库且不是自己的
   const { data: srcLib } = await supabase
     .from("libraries")
-    .select("id, name, user_id, publish_status, time_display")
+    .select("id, name, user_id, publish_status, time_display, publish_categories")
     .eq("id", sourceLibraryId)
     .single();
   if (!srcLib || srcLib.publish_status !== "published") {
@@ -498,7 +518,13 @@ export async function subscribeToPublished(
     .single();
   if (libError || !newLib) return { error: "订阅失败" };
 
-  await copyProductsToLibrary(supabase, sourceLibraryId, newLib.id, user.id);
+  await copyProductsToLibrary(
+    supabase,
+    sourceLibraryId,
+    newLib.id,
+    user.id,
+    (srcLib as { publish_categories?: string[] | null }).publish_categories
+  );
   await supabase.from("library_subscriptions").insert({
     library_id: sourceLibraryId,
     copy_library_id: newLib.id,
@@ -517,7 +543,7 @@ export async function importPublishedLibrary(
 
   const { data: srcLib } = await supabase
     .from("libraries")
-    .select("id, name, publish_status")
+    .select("id, name, publish_status, publish_categories")
     .eq("id", sourceLibraryId)
     .single();
   if (!srcLib || srcLib.publish_status !== "published") {
@@ -531,7 +557,13 @@ export async function importPublishedLibrary(
     .single();
   if (libError || !newLib) return { error: "导入失败" };
 
-  await copyProductsToLibrary(supabase, sourceLibraryId, newLib.id, user.id);
+  await copyProductsToLibrary(
+    supabase,
+    sourceLibraryId,
+    newLib.id,
+    user.id,
+    (srcLib as { publish_categories?: string[] | null }).publish_categories
+  );
   revalidatePath("/products");
   return { libraryId: newLib.id };
 }

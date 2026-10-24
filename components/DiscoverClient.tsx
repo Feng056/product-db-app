@@ -10,6 +10,7 @@ export type PublishedLib = {
   owner_name: string;
   product_count: number;
   created_at: string;
+  publish_categories?: string[] | null;
 };
 
 /** 已发布库列表 + 一键订阅 */

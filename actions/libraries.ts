@@ -191,8 +191,13 @@ export async function deleteLibrary(formData: FormData): Promise<ActionResult> {
 
 /* ================= 发布审核 ================= */
 
-/** 申请发布自己的库（进入待审核）；已发布的库可申请更新重新审核 */
-export async function requestPublish(libraryId: string): Promise<ActionResult> {
+/** 申请发布自己的库（进入待审核）；已发布的库可申请更新重新审核
+ * @param categories 要发布的分类，null/空数组表示全部分类
+ */
+export async function requestPublish(
+  libraryId: string,
+  categories?: string[] | null
+): Promise<ActionResult> {
   const { supabase, user } = await requireUser();
   const { data: lib } = await supabase
     .from("libraries")
@@ -202,13 +207,35 @@ export async function requestPublish(libraryId: string): Promise<ActionResult> {
     .single();
   if (!lib) return { error: "无权限" };
   if (lib.publish_status === "pending") return { error: "已在审核中" };
+  const publish_categories =
+    categories && categories.length > 0 ? categories : null;
   const { error } = await supabase
     .from("libraries")
-    .update({ publish_status: "pending", publish_requested_at: new Date().toISOString() })
+    .update({
+      publish_status: "pending",
+      publish_requested_at: new Date().toISOString(),
+      publish_categories,
+    })
     .eq("id", libraryId);
   if (error) return { error: error.message };
   revalidatePath("/products/new");
   return { message: lib.publish_status === "published" ? "已提交更新审核，通过后自动推送给订阅者" : "已提交审核，等待管理员通过" };
+}
+
+/** 获取某库的去重分类列表（发布时勾选用） */
+export async function getLibraryCategories(libraryId: string): Promise<string[]> {
+  const { supabase, user } = await requireUser();
+  const { data } = await supabase
+    .from("products")
+    .select("category")
+    .eq("library_id", libraryId)
+    .eq("user_id", user.id);
+  const set = new Set<string>();
+  for (const p of data || []) {
+    const c = String((p as { category?: string }).category || "").trim() || "未分类";
+    set.add(c);
+  }
+  return Array.from(set).sort();
 }
 
 /** 取消发布申请 / 下架已发布的库 */
@@ -269,14 +296,14 @@ export async function rejectPublish(libraryId: string): Promise<ActionResult> {
 
 /** 获取已发布的库（发现页用，含主人昵称和产品数） */
 export async function getPublishedLibraries(): Promise<
-  { id: string; name: string; owner_name: string; product_count: number; created_at: string }[]
+  { id: string; name: string; owner_name: string; product_count: number; created_at: string; publish_categories?: string[] | null }[]
 > {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
   const { data: libs } = await supabase
     .from("libraries")
-    .select("id, name, user_id, created_at")
+    .select("id, name, user_id, created_at, publish_categories")
     .eq("publish_status", "published")
     .neq("user_id", user.id)
     .order("created_at", { ascending: false })
@@ -317,6 +344,7 @@ export async function getPublishedLibraries(): Promise<
       owner_name: ownerMap.get(l.user_id) || "未知",
       product_count: countMap[l.id] || 0,
       created_at: l.created_at,
+      publish_categories: (l as { publish_categories?: string[] | null }).publish_categories || null,
     }));
 }
 
