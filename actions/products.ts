@@ -290,6 +290,8 @@ export async function getLibraryExportData(
     .eq("user_id", user.id)
     .single();
   if (!lib) return { error: "产品库不存在或无权限" };
+  const readonlyErr = await assertLibraryWritable(supabase, user.id, libraryId);
+  if (readonlyErr) return { error: "订阅的库不支持导出" };
 
   const { data, error } = await supabase
     .from("products")
@@ -319,6 +321,17 @@ export async function getMultiLibraryExportData(
     .in("id", ids);
   const libMap = new Map(((libs || []) as { id: string; name: string }[]).map((l) => [l.id, l.name]));
   if (libMap.size === 0) return { error: "所选产品库无效" };
+
+  // 剔除订阅副本（不支持导出）
+  const { data: subs } = await supabase
+    .from("library_subscriptions")
+    .select("copy_library_id")
+    .eq("subscriber_id", user.id)
+    .in("copy_library_id", Array.from(libMap.keys()));
+  for (const s of subs || []) {
+    libMap.delete(s.copy_library_id);
+  }
+  if (libMap.size === 0) return { error: "订阅的库不支持导出" };
 
   const { data, error } = await supabase
     .from("products")

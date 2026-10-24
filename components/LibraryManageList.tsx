@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { renameLibrary, deleteLibrary } from "@/actions/libraries";
+import { renameLibrary, deleteLibrary, requestPublish, unpublishLibrary } from "@/actions/libraries";
 import { pushSubscriptionUpdate } from "@/actions/shares";
 import type { Library } from "@/lib/types";
 
@@ -55,6 +55,31 @@ export default function LibraryManageList({
     }
   }
 
+  async function onRequestPublish(id: string, name: string) {
+    if (!window.confirm(`申请将「${name}」发布为公共库？审核通过后所有人可见并可订阅。`)) return;
+    setError(null);
+    const res = await requestPublish(id);
+    if (res.error) setError(res.error);
+    else if (res.message) setPushMsg(res.message);
+  }
+
+  async function onUnpublish(id: string, name: string, isPublished: boolean) {
+    if (!window.confirm(isPublished ? `将「${name}」下架？订阅者不受影响。` : `取消「${name}」的发布申请？`)) return;
+    setError(null);
+    const res = await unpublishLibrary(id);
+    if (res.error) setError(res.error);
+  }
+
+  function publishBadge(status?: string) {
+    if (status === "published")
+      return <span className="ml-1 rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400">已发布</span>;
+    if (status === "pending")
+      return <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">审核中</span>;
+    if (status === "rejected")
+      return <span className="ml-1 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700 dark:bg-red-900/30 dark:text-red-400">已驳回</span>;
+    return null;
+  }
+
   return (
     <div>
       <div className="space-y-2">
@@ -93,6 +118,7 @@ export default function LibraryManageList({
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
                     {lib.name}
+                    {publishBadge(lib.publish_status)}
                   </div>
                   <div className="text-xs text-gray-400">
                     {counts[lib.id] || 0} 个产品
@@ -108,6 +134,22 @@ export default function LibraryManageList({
                     className="shrink-0 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-medium text-white disabled:opacity-50"
                   >
                     {pushingId === lib.id ? "推送中…" : "📡 推送更新"}
+                  </button>
+                )}
+                {(!lib.publish_status || lib.publish_status === "private" || lib.publish_status === "rejected") && (
+                  <button
+                    onClick={() => onRequestPublish(lib.id, lib.name)}
+                    className="shrink-0 rounded-lg bg-green-50 px-2.5 py-1.5 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                  >
+                    发布
+                  </button>
+                )}
+                {(lib.publish_status === "pending" || lib.publish_status === "published") && (
+                  <button
+                    onClick={() => onUnpublish(lib.id, lib.name, lib.publish_status === "published")}
+                    className="shrink-0 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                  >
+                    {lib.publish_status === "pending" ? "撤回" : "下架"}
                   </button>
                 )}
                 <button

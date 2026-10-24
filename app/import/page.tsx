@@ -1,8 +1,10 @@
 import { getCurrentProfile } from "@/actions/auth";
 import { ensureDefaultLibrary } from "@/actions/libraries";
+import { createClient } from "@/lib/supabase/server";
 import BottomNav from "@/components/BottomNav";
 import ImportClient from "@/components/ImportClient";
 import ExportPanel from "@/components/ExportPanel";
+import SubscribePlaza from "@/components/SubscribePlaza";
 
 /** 导入导出页：导入（上传文件预览导入）+ 导出（多选库、选格式） */
 export default async function ImportPage({
@@ -10,11 +12,24 @@ export default async function ImportPage({
 }: {
   searchParams: { lib?: string; tab?: string };
 }) {
-  const { profile } = await getCurrentProfile();
+  const { user, profile } = await getCurrentProfile();
   const libraries = await ensureDefaultLibrary();
   const lib = searchParams.lib || "";
   const tab = searchParams.tab === "export" ? "export" : "import";
   const libParam = lib ? `&lib=${lib}` : "";
+
+  // 订阅副本不可导出：从导出列表中剔除
+  const supabase = await createClient();
+  const { data: subs } = await supabase
+    .from("library_subscriptions")
+    .select("copy_library_id")
+    .eq("subscriber_id", user!.id);
+  const subCopyIds = new Set((subs || []).map((s) => s.copy_library_id));
+  const exportableLibraries = libraries.filter((l) => !subCopyIds.has(l.id));
+
+  // 订阅广场：已发布的公共库
+  const { getPublishedLibraries } = await import("@/actions/libraries");
+  const publishedLibs = await getPublishedLibraries();
 
   return (
     <>
@@ -43,9 +58,12 @@ export default async function ImportPage({
 
         <div className="mt-4">
           {tab === "import" ? (
-            <ImportClient libraryId={lib || undefined} />
+            <>
+              <SubscribePlaza libs={publishedLibs} />
+              <ImportClient libraryId={lib || undefined} />
+            </>
           ) : (
-            <ExportPanel libraries={libraries} defaultSelectedId={lib || undefined} />
+            <ExportPanel libraries={exportableLibraries} defaultSelectedId={lib || undefined} />
           )}
         </div>
       </main>

@@ -10,6 +10,7 @@ import PasswordChangeForm from "@/components/PasswordChangeForm";
 import CreateInviteCodeForm from "@/components/CreateInviteCodeForm";
 import ThemeSelector from "@/components/ThemeSelector";
 import GroupManager from "@/components/GroupManager";
+import PublishReview from "@/components/PublishReview";
 import UserManager from "@/components/UserManager";
 import InviteCodeQR from "@/components/InviteCodeQR";
 import { formatDateTime } from "@/lib/utils";
@@ -65,7 +66,7 @@ export default async function SettingsPage({
   const isAdmin = !!profile?.is_admin;
 
   const supabase = await createClient();
-  const tab = searchParams.tab === "codes" ? "codes" : searchParams.tab === "groups" ? "groups" : "users";
+  const tab = searchParams.tab === "codes" ? "codes" : searchParams.tab === "groups" ? "groups" : searchParams.tab === "publish" ? "publish" : "users";
 
   // 头像公开链接
   const avatarPath = (profile as { avatar_path?: string } | null)?.avatar_path || "";
@@ -83,6 +84,7 @@ export default async function SettingsPage({
   let groupList: Group[] = [];
   let allTags: string[] = [];
   let memberCounts: Record<string, number> = {};
+  let pendingPublish: { id: string; name: string; owner_name: string; product_count: number; publish_requested_at: string }[] = [];
   if (isAdmin) {
     const { data: users } = await supabase
       .from("profiles")
@@ -104,6 +106,8 @@ export default async function SettingsPage({
     for (const u of userList) {
       if (u.group_id) memberCounts[u.group_id] = (memberCounts[u.group_id] || 0) + 1;
     }
+    const { getPendingPublishRequests } = await import("@/actions/libraries");
+    pendingPublish = await getPendingPublishRequests();
   }
 
   return (
@@ -180,14 +184,14 @@ export default async function SettingsPage({
           <section className="mt-6">
             <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400 ">管理</h2>
 
-            <div className="grid grid-cols-3 gap-2 rounded-2xl bg-gray-100 dark:bg-gray-800 p-1">
+            <div className="grid grid-cols-4 gap-2 rounded-2xl bg-gray-100 dark:bg-gray-800 p-1">
               <Link
                 href="/settings?tab=users"
                 className={`rounded-xl py-2 text-center text-sm font-medium ${
                   tab === "users" ? "bg-white dark:bg-gray-900 shadow-sm" : "text-gray-500 dark:text-gray-400"
                 }`}
               >
-                用户（{userList.length}）
+                用户
               </Link>
               <Link
                 href="/settings?tab=groups"
@@ -195,7 +199,7 @@ export default async function SettingsPage({
                   tab === "groups" ? "bg-white dark:bg-gray-900 shadow-sm" : "text-gray-500 dark:text-gray-400"
                 }`}
               >
-                分组（{groupList.length}）
+                分组
               </Link>
               <Link
                 href="/settings?tab=codes"
@@ -203,7 +207,15 @@ export default async function SettingsPage({
                   tab === "codes" ? "bg-white dark:bg-gray-900 shadow-sm" : "text-gray-500 dark:text-gray-400"
                 }`}
               >
-                邀请码（{codeList.length}）
+                邀请码
+              </Link>
+              <Link
+                href="/settings?tab=publish"
+                className={`rounded-xl py-2 text-center text-sm font-medium ${
+                  tab === "publish" ? "bg-white dark:bg-gray-900 shadow-sm" : "text-gray-500 dark:text-gray-400"
+                }`}
+              >
+                发布审核
               </Link>
             </div>
 
@@ -216,6 +228,8 @@ export default async function SettingsPage({
               />
             ) : tab === "groups" ? (
               <GroupManager groups={groupList} memberCounts={memberCounts} />
+            ) : tab === "publish" ? (
+              <PublishReview requests={pendingPublish} />
             ) : (
               <>
                 <div className="mt-3">

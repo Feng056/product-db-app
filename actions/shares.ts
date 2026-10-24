@@ -429,3 +429,76 @@ export async function getSubscriptionInfo(libraryId: string): Promise<{
   }
   return { isCopy: false };
 }
+
+/** 直接订阅已发布的库（发现页用，无需分享链接） */
+export async function subscribeToPublished(
+  sourceLibraryId: string
+): Promise<{ libraryId?: string; error?: string }> {
+  const { supabase, user } = await requireUser();
+
+  // 校验是已发布的库且不是自己的
+  const { data: srcLib } = await supabase
+    .from("libraries")
+    .select("id, name, user_id, publish_status")
+    .eq("id", sourceLibraryId)
+    .single();
+  if (!srcLib || srcLib.publish_status !== "published") {
+    return { error: "该库未发布或不存在" };
+  }
+  if (srcLib.user_id === user.id) return { error: "不能订阅自己的库" };
+
+  // 已订阅过则直接返回
+  const { data: existing } = await supabase
+    .from("library_subscriptions")
+    .select("copy_library_id")
+    .eq("library_id", sourceLibraryId)
+    .eq("subscriber_id", user.id)
+    .limit(1);
+  if (existing && existing.length > 0) {
+    return { libraryId: existing[0].copy_library_id };
+  }
+
+  const { data: newLib, error: libError } = await supabase
+    .from("libraries")
+    .insert({ user_id: user.id, name: srcLib.name.slice(0, 30) })
+    .select("id")
+    .single();
+  if (libError || !newLib) return { error: "订阅失败" };
+
+  await copyProductsToLibrary(supabase, sourceLibraryId, newLib.id, user.id);
+  await supabase.from("library_subscriptions").insert({
+    library_id: sourceLibraryId,
+    copy_library_id: newLib.id,
+    subscriber_id: user.id,
+  });
+
+  revalidatePath("/products");
+  return { libraryId: newLib.id };
+}
+
+/** 直接导入已发布的库为独立副本（可自由修改，与发布者无关） */
+export async function importPublishedLibrary(
+  sourceLibraryId: string
+): Promise<{ libraryId?: string; error?: string }> {
+  const { supabase, user } = await requireUser();
+
+  const { data: srcLib } = await supabase
+    .from("libraries")
+    .select("id, name, publish_status")
+    .eq("id", sourceLibraryId)
+    .single();
+  if (!srcLib || srcLib.publish_status !== "published") {
+    return { error: "该库未发布或不存在" };
+  }
+
+  const { data: newLib, error: libError } = await supabase
+    .from("libraries")
+    .insert({ user_id: user.id, name: srcLib.name.slice(0, 30) })
+    .select("id")
+    .single();
+  if (libError || !newLib) return { error: "导入失败" };
+
+  await copyProductsToLibrary(supabase, sourceLibraryId, newLib.id, user.id);
+  revalidatePath("/products");
+  return { libraryId: newLib.id };
+}

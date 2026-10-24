@@ -5,6 +5,8 @@ export type Library = {
   name: string;
   created_at: string;
   updated_at: string;
+  publish_status?: string;
+  publish_requested_at?: string | null;
 };
 
 /** 规格参数：动态 key-value 列表 */
