@@ -6,8 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 
 const TABS = [
   { href: "/products", label: "产品库", icon: "📦" },
-  { href: "/products/new", label: "新增", icon: "➕" },
-  { href: "/import", label: "导入导出", icon: "📥" },
+  { href: "/products/new", label: "管理", icon: "🛠️" },
   { href: "/settings", label: "设置", icon: "⚙️" },
 ];
 
@@ -22,7 +21,7 @@ export default function BottomNav({
   const pathname = usePathname();
   const router = useRouter();
   const withLib = (href: string) =>
-    lib && (href === "/products/new" || href === "/import")
+    lib && href === "/products/new"
       ? `${href}?lib=${lib}`
       : href;
 
