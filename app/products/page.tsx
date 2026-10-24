@@ -15,7 +15,7 @@ import type { Product } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 type Props = {
-  searchParams: { categories?: string; lib?: string; limit?: string; tags?: string; view?: string; sort?: string; q?: string; mode?: string };
+  searchParams: { categories?: string; lib?: string; limit?: string; tags?: string; recent?: string; view?: string; sort?: string; q?: string; mode?: string };
 };
 
 const PAGE_SIZE = 30;
@@ -78,6 +78,12 @@ export default async function ProductsPage({ searchParams }: Props) {
 
   // URL 中选中的标签（只保留有效的）
   const selectedTags = (searchParams.tags || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s && tagSet.has(s));
+
+  // 最近交互的标签顺序（选中或取消都算，最近的在前）
+  const recentTags = (searchParams.recent || "")
     .split(",")
     .map((s) => s.trim())
     .filter((s) => s && tagSet.has(s));
@@ -145,11 +151,17 @@ export default async function ProductsPage({ searchParams }: Props) {
   const tagsParam = selectedTags.length > 0
     ? `tags=${encodeURIComponent(selectedTags.join(","))}`
     : "";
-  const buildParams = (cats: string[], tagList: string[]) =>
+  const recentParam = recentTags.length > 0
+    ? `recent=${encodeURIComponent(recentTags.join(","))}`
+    : "";
+  const buildParams = (cats: string[], tagList: string[], recentList?: string[]) =>
     [
       `lib=${currentId}`,
       cats.length > 0 ? `categories=${encodeURIComponent(cats.join(","))}` : "",
       tagList.length > 0 ? `tags=${encodeURIComponent(tagList.join(","))}` : "",
+      recentList && recentList.length > 0
+        ? `recent=${encodeURIComponent(recentList.join(","))}`
+        : "",
       view === "grid" ? "view=grid" : "",
       sort !== "newest" ? `sort=${sort}` : "",
       query ? `q=${encodeURIComponent(query)}` : "",
@@ -211,7 +223,7 @@ export default async function ProductsPage({ searchParams }: Props) {
       key: "cat-all",
       label: "全部",
       active: selectedCategories.length === 0,
-      href: `/products?lib=${currentId}${tagsParam ? `&${tagsParam}` : ""}`,
+      href: `/products?lib=${currentId}${tagsParam ? `&${tagsParam}` : ""}${recentParam ? `&${recentParam}` : ""}`,
       check: false,
     },
     ...categories.map((c) => {
@@ -223,7 +235,7 @@ export default async function ProductsPage({ searchParams }: Props) {
         key: `cat-${c}`,
         label: c,
         active,
-        href: `/products?${buildParams(next, selectedTags)}`,
+        href: `/products?${buildParams(next, selectedTags, recentTags)}`,
         check: true,
       };
     }),
@@ -232,31 +244,43 @@ export default async function ProductsPage({ searchParams }: Props) {
       const next = active
         ? selectedTags.filter((x) => x !== t)
         : [...selectedTags, t];
+      // 更新最近交互顺序：被点击的标签移到最前
+      const nextRecent = [t, ...recentTags.filter((x) => x !== t)].slice(0, 30);
       return {
         key: `tag-${t}`,
         label: `#${t}`,
         active,
-        href: `/products?${buildParams(selectedCategories, next)}`,
+        href: `/products?${buildParams(selectedCategories, next, nextRecent)}`,
         check: true,
       };
     }),
   ];
-  // 选中项按选择顺序倒序排（最后选的在最前），未选中保持原序
+  // 动态排序：按最近交互时间（选中/取消都算），最近的在前
+  const recentIndex = (label: string) => {
+    const tag = label.startsWith("#") ? label.slice(1) : label;
+    const i = recentTags.indexOf(tag);
+    return i === -1 ? 9999 : i;
+  };
   const activeCatChips = chips
     .filter((c) => c.active && c.key.startsWith("cat-") && c.key !== "cat-all")
     .sort((a, b) => selectedCategories.indexOf(b.label) - selectedCategories.indexOf(a.label));
   const activeTagChips = chips
     .filter((c) => c.active && c.key.startsWith("tag-"))
-    .sort(
-      (a, b) =>
-        selectedTags.indexOf(b.label.slice(1)) - selectedTags.indexOf(a.label.slice(1))
-    );
+    .sort((a, b) => recentIndex(a.label) - recentIndex(b.label));
+  const inactiveTagChips = chips
+    .filter((c) => !c.active && c.key.startsWith("tag-"))
+    .sort((a, b) => recentIndex(a.label) - recentIndex(b.label));
   const allChip = chips.find((c) => c.key === "cat-all")!;
+  const inactiveCatChips = chips.filter(
+    (c) => !c.active && c.key.startsWith("cat-") && c.key !== "cat-all"
+  );
   const sortedChips = [
     ...(allChip.active ? [allChip] : []),
     ...activeCatChips,
     ...activeTagChips,
-    ...chips.filter((c) => !c.active),
+    ...inactiveTagChips,
+    ...inactiveCatChips,
+    ...(!allChip.active ? [allChip] : []),
   ];
   const activeFilterCount =
     selectedCategories.length + selectedTags.length;
