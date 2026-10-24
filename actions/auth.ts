@@ -5,8 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 
 type ActionResult = { error?: string; message?: string };
 
-/** 账号制：内部邮箱域名（Supabase Auth 仍需要邮箱格式） */
-const FAKE_EMAIL_DOMAIN = "productdb.local";
+/** 账号制：内部邮箱域名（Supabase Auth 仍需要邮箱格式，且会校验域名真实存在，
+    故必须用已解析的真实域名，不能用 .local 这类假域名） */
+const FAKE_EMAIL_DOMAIN = "xinruibz.top";
 
 /** 账号 → 内部邮箱 */
 function accountToEmail(account: string): string {
