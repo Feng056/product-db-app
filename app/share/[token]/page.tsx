@@ -94,7 +94,7 @@ export default async function SharePage({
         })}
       </div>
 
-      {/* 导入 */}
+      {/* 订阅 */}
       {user ? (
         <ShareImportClient token={params.token} shared={shared} />
       ) : (
@@ -103,7 +103,7 @@ export default async function SharePage({
             href={`/login?next=${encodeURIComponent(`/share/${params.token}`)}`}
             className="block w-full rounded-2xl bg-blue-600 py-3.5 text-center text-base font-semibold text-white"
           >
-            登录后导入
+            登录后订阅
           </Link>
         </div>
       )}

@@ -3,12 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  importSharedLibraries,
   subscribeToLibraries,
   type SharedLibraryData,
 } from "@/actions/shares";
 
-/** 分享导入：订阅（只读同步）或导入副本（二选一） */
+/** 分享导入：仅订阅（只读同步，不提供独立副本，防止改后冒充发布者） */
 export default function ShareImportClient({
   token,
   shared,
@@ -18,7 +17,6 @@ export default function ShareImportClient({
 }) {
   const router = useRouter();
   const libs = shared.libraries || [];
-  const [mode, setMode] = useState<"subscribe" | "import">("subscribe");
   const [selected, setSelected] = useState<Set<number>>(new Set(libs.map((_, i) => i)));
   const [names, setNames] = useState<Record<number, string>>(
     Object.fromEntries(libs.map((l, i) => [i, l.library_name || ""]))
@@ -41,56 +39,21 @@ export default function ShareImportClient({
       index: i,
       name: (names[i] || libs[i].library_name || "").trim(),
     }));
-    if (mode === "subscribe") {
-      const res = await subscribeToLibraries(token, selections);
-      setWorking(false);
-      if (res.error) {
-        setError(res.error);
-      } else if (res.libraryIds && res.libraryIds.length > 0) {
-        router.push(`/products?lib=${res.libraryIds[0]}`);
-      } else {
-        setError("订阅失败，可能已经订阅过");
-      }
+    const res = await subscribeToLibraries(token, selections);
+    setWorking(false);
+    if (res.error) {
+      setError(res.error);
+    } else if (res.libraryIds && res.libraryIds.length > 0) {
+      router.push(`/products?lib=${res.libraryIds[0]}`);
     } else {
-      const res = await importSharedLibraries(token, selections);
-      setWorking(false);
-      if (res.error) {
-        setError(res.error);
-      } else if (res.libraryIds && res.libraryIds.length > 0) {
-        router.push(`/products?lib=${res.libraryIds[0]}`);
-      }
+      setError("订阅失败，可能已经订阅过");
     }
   }
 
   return (
     <div className="mt-6">
-      {/* 订阅 / 导入切换 */}
-      <div className="mb-3 grid grid-cols-2 gap-2 rounded-2xl bg-gray-100 dark:bg-gray-800 p-1">
-        <button
-          onClick={() => setMode("subscribe")}
-          className={`rounded-xl py-2.5 text-sm font-medium ${
-            mode === "subscribe"
-              ? "bg-white dark:bg-gray-900 shadow-sm text-blue-600"
-              : "text-gray-500 dark:text-gray-400"
-          }`}
-        >
-          📡 订阅
-        </button>
-        <button
-          onClick={() => setMode("import")}
-          className={`rounded-xl py-2.5 text-sm font-medium ${
-            mode === "import"
-              ? "bg-white dark:bg-gray-900 shadow-sm text-blue-600"
-              : "text-gray-500 dark:text-gray-400"
-          }`}
-        >
-          📥 导入副本
-        </button>
-      </div>
       <p className="mb-3 text-xs text-gray-400 text-center">
-        {mode === "subscribe"
-          ? "订阅后只读，主人推送更新或你点刷新即可同步最新内容"
-          : "导入为独立副本，可自由修改，与主人不再关联"}
+        订阅后只读，主人推送更新或你点刷新即可同步最新内容
       </p>
 
       <div className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -147,16 +110,10 @@ export default function ShareImportClient({
         disabled={working || selected.size === 0}
         className="mt-4 w-full rounded-2xl bg-blue-600 py-3.5 text-base font-semibold text-white disabled:opacity-50"
       >
-        {working
-          ? mode === "subscribe" ? "订阅中…" : "导入中…"
-          : mode === "subscribe"
-            ? `订阅选中（${selected.size} 个仓库）`
-            : `导入选中（${selected.size} 个仓库）`}
+        {working ? "订阅中…" : `订阅选中（${selected.size} 个仓库）`}
       </button>
       <p className="mt-2 text-center text-xs text-gray-400 dark:text-gray-500">
-        {mode === "subscribe"
-          ? "订阅会在你的账号下新建只读仓库"
-          : "导入会在你的账号下按上面的名字新建仓库"}
+        订阅会在你的账号下新建只读仓库
       </p>
     </div>
   );

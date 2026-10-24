@@ -2,23 +2,20 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { subscribeToPublished, importPublishedLibrary } from "@/actions/shares";
+import { subscribeToPublished } from "@/actions/shares";
 import type { PublishedLib } from "@/components/DiscoverClient";
 
-/** 订阅广场：导入页顶部，他人发布的库可导入/可订阅 */
+/** 订阅广场：他人发布的库仅可订阅（只读同步，不提供独立副本，防止改后冒充发布者） */
 export default function SubscribePlaza({ libs }: { libs: PublishedLib[] }) {
   const [open, setOpen] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
   const router = useRouter();
 
-  async function onAction(id: string, mode: "subscribe" | "import") {
-    setBusy(`${mode}:${id}`);
+  async function onSubscribe(id: string) {
+    setBusy(`subscribe:${id}`);
     setError("");
-    const res =
-      mode === "subscribe"
-        ? await subscribeToPublished(id)
-        : await importPublishedLibrary(id);
+    const res = await subscribeToPublished(id);
     setBusy(null);
     if (res.error) {
       setError(res.error);
@@ -92,18 +89,11 @@ export default function SubscribePlaza({ libs }: { libs: PublishedLib[] }) {
               </div>
               <div className="mt-2 flex gap-2">
                 <button
-                  onClick={() => onAction(lib.id, "subscribe")}
+                  onClick={() => onSubscribe(lib.id)}
                   disabled={!!busy}
                   className="flex-1 rounded-lg bg-purple-600 py-2 text-xs font-medium text-white disabled:opacity-50"
                 >
                   {busy === `subscribe:${lib.id}` ? "订阅中…" : "📡 订阅（只读同步）"}
-                </button>
-                <button
-                  onClick={() => onAction(lib.id, "import")}
-                  disabled={!!busy}
-                  className="flex-1 rounded-lg bg-blue-600 py-2 text-xs font-medium text-white disabled:opacity-50"
-                >
-                  {busy === `import:${lib.id}` ? "导入中…" : "📥 导入（独立副本）"}
                 </button>
               </div>
             </div>
