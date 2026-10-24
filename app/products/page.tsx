@@ -241,8 +241,21 @@ export default async function ProductsPage({ searchParams }: Props) {
       };
     }),
   ];
+  // 选中项按选择顺序倒序排（最后选的在最前），未选中保持原序
+  const activeCatChips = chips
+    .filter((c) => c.active && c.key.startsWith("cat-") && c.key !== "cat-all")
+    .sort((a, b) => selectedCategories.indexOf(b.label) - selectedCategories.indexOf(a.label));
+  const activeTagChips = chips
+    .filter((c) => c.active && c.key.startsWith("tag-"))
+    .sort(
+      (a, b) =>
+        selectedTags.indexOf(b.label.slice(1)) - selectedTags.indexOf(a.label.slice(1))
+    );
+  const allChip = chips.find((c) => c.key === "cat-all")!;
   const sortedChips = [
-    ...chips.filter((c) => c.active),
+    ...(allChip.active ? [allChip] : []),
+    ...activeCatChips,
+    ...activeTagChips,
     ...chips.filter((c) => !c.active),
   ];
   const activeFilterCount =
