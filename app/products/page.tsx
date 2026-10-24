@@ -4,7 +4,6 @@ import { getCurrentProfile } from "@/actions/auth";
 import { ensureDefaultLibrary } from "@/actions/libraries";
 import BottomNav from "@/components/BottomNav";
 import ProductCard from "@/components/ProductCard";
-import TagFilterChips from "@/components/TagFilterChips";
 import LibraryBar from "@/components/LibraryBar";
 import SubscriptionActions from "@/components/SubscriptionActions";
 import FilterCollapse from "@/components/FilterCollapse";
@@ -16,7 +15,7 @@ import type { Product } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 type Props = {
-  searchParams: { categories?: string; lib?: string; limit?: string; tags?: string; recent?: string; view?: string; sort?: string; q?: string; mode?: string };
+  searchParams: { categories?: string; lib?: string; limit?: string; tags?: string; deselected?: string; view?: string; sort?: string; q?: string; mode?: string };
 };
 
 const PAGE_SIZE = 30;
@@ -96,7 +95,7 @@ export default async function ProductsPage({ searchParams }: Props) {
     .filter((s) => s && tagSet.has(s));
 
   // 最近交互的标签顺序（选中或取消都算，最近的在前）
-  const recentTags = (searchParams.recent || "")
+  const deselectedTags = (searchParams.deselected || "")
     .split(",")
     .map((s) => s.trim())
     .filter((s) => s && tagSet.has(s));
@@ -122,8 +121,8 @@ export default async function ProductsPage({ searchParams }: Props) {
     selectedTags.length > 0
       ? `tags=${encodeURIComponent(selectedTags.join(","))}`
       : "",
-    recentTags.length > 0
-      ? `recent=${encodeURIComponent(recentTags.join(","))}`
+    deselectedTags.length > 0
+      ? `deselected=${encodeURIComponent(deselectedTags.join(","))}`
       : "",
     view === "grid" ? "view=grid" : "",
     sort !== "newest" ? `sort=${sort}` : "",
@@ -167,8 +166,8 @@ export default async function ProductsPage({ searchParams }: Props) {
   const tagsParam = selectedTags.length > 0
     ? `tags=${encodeURIComponent(selectedTags.join(","))}`
     : "";
-  const recentParam = recentTags.length > 0
-    ? `recent=${encodeURIComponent(recentTags.join(","))}`
+  const deselectedParam = deselectedTags.length > 0
+    ? `deselected=${encodeURIComponent(deselectedTags.join(","))}`
     : "";
   const buildParams = (cats: string[], tagList: string[], recentList?: string[]) =>
     [
@@ -176,7 +175,7 @@ export default async function ProductsPage({ searchParams }: Props) {
       cats.length > 0 ? `categories=${encodeURIComponent(cats.join(","))}` : "",
       tagList.length > 0 ? `tags=${encodeURIComponent(tagList.join(","))}` : "",
       recentList && recentList.length > 0
-        ? `recent=${encodeURIComponent(recentList.join(","))}`
+        ? `deselected=${encodeURIComponent(recentList.join(","))}`
         : "",
       view === "grid" ? "view=grid" : "",
       sort !== "newest" ? `sort=${sort}` : "",
@@ -195,8 +194,8 @@ export default async function ProductsPage({ searchParams }: Props) {
       selectedTags.length > 0
         ? `tags=${encodeURIComponent(selectedTags.join(","))}`
         : "",
-      recentTags.length > 0
-        ? `recent=${encodeURIComponent(recentTags.join(","))}`
+      deselectedTags.length > 0
+        ? `deselected=${encodeURIComponent(deselectedTags.join(","))}`
         : "",
       sort !== "newest" ? `sort=${sort}` : "",
       query ? `q=${encodeURIComponent(query)}` : "",
@@ -216,8 +215,8 @@ export default async function ProductsPage({ searchParams }: Props) {
     selectedTags.length > 0
       ? `tags=${encodeURIComponent(selectedTags.join(","))}`
       : "",
-    recentTags.length > 0
-      ? `recent=${encodeURIComponent(recentTags.join(","))}`
+    deselectedTags.length > 0
+      ? `deselected=${encodeURIComponent(deselectedTags.join(","))}`
       : "",
     view === "grid" ? "view=grid" : "",
     sort !== "newest" ? `sort=${sort}` : "",
@@ -233,8 +232,8 @@ export default async function ProductsPage({ searchParams }: Props) {
     selectedTags.length > 0
       ? `tags=${encodeURIComponent(selectedTags.join(","))}`
       : "",
-    recentTags.length > 0
-      ? `recent=${encodeURIComponent(recentTags.join(","))}`
+    deselectedTags.length > 0
+      ? `deselected=${encodeURIComponent(deselectedTags.join(","))}`
       : "",
     view === "grid" ? "view=grid" : "",
     query ? `q=${encodeURIComponent(query)}` : "",
@@ -248,7 +247,7 @@ export default async function ProductsPage({ searchParams }: Props) {
       key: "cat-all",
       label: "全部",
       active: selectedCategories.length === 0,
-      href: `/products?lib=${currentId}${tagsParam ? `&${tagsParam}` : ""}${recentParam ? `&${recentParam}` : ""}`,
+      href: `/products?lib=${currentId}${tagsParam ? `&${tagsParam}` : ""}${deselectedParam ? `&${deselectedParam}` : ""}`,
       check: false,
     },
     ...categories.map((c) => {
@@ -260,7 +259,7 @@ export default async function ProductsPage({ searchParams }: Props) {
         key: `cat-${c}`,
         label: c,
         active,
-        href: `/products?${buildParams(next, selectedTags, recentTags)}`,
+        href: `/products?${buildParams(next, selectedTags, deselectedTags)}`,
         check: true,
       };
     }),
@@ -269,19 +268,49 @@ export default async function ProductsPage({ searchParams }: Props) {
       const next = active
         ? selectedTags.filter((x) => x !== t)
         : [...selectedTags, t];
-      // 更新最近交互顺序：被点击的标签移到最前
-      const nextRecent = [t, ...recentTags.filter((x) => x !== t)].slice(0, 30);
+      // 取消选中时记入 deselected（最前），选中时从 deselected 移除
+      const nextDeselected = active
+        ? [t, ...deselectedTags.filter((x) => x !== t)].slice(0, 30)
+        : deselectedTags.filter((x) => x !== t);
       return {
         key: `tag-${t}`,
         label: `#${t}`,
         active,
-        href: `/products?${buildParams(selectedCategories, next, nextRecent)}`,
+        href: `/products?${buildParams(selectedCategories, next, nextDeselected)}`,
         check: true,
       };
     }),
   ];
-  // 服务端保持原始顺序，客户端 TagFilterChips 按 localStorage 交互历史动态排序
-  const sortedChips = chips;
+  // 排序：选中组按选择倒序（最后选的在前）；未选中组按取消时间（最后取消的在前），其余保持原序
+  const deselectedIndex = (label: string) => {
+    const tag = label.startsWith("#") ? label.slice(1) : label;
+    const i = deselectedTags.indexOf(tag);
+    return i === -1 ? 9999 : i;
+  };
+  const activeCatChips = chips
+    .filter((c) => c.active && c.key.startsWith("cat-") && c.key !== "cat-all")
+    .sort((a, b) => selectedCategories.indexOf(b.label) - selectedCategories.indexOf(a.label));
+  const activeTagChips = chips
+    .filter((c) => c.active && c.key.startsWith("tag-"))
+    .sort(
+      (a, b) =>
+        selectedTags.indexOf(b.label.slice(1)) - selectedTags.indexOf(a.label.slice(1))
+    );
+  const inactiveTagChips = chips
+    .filter((c) => !c.active && c.key.startsWith("tag-"))
+    .sort((a, b) => deselectedIndex(a.label) - deselectedIndex(b.label));
+  const allChip = chips.find((c) => c.key === "cat-all")!;
+  const inactiveCatChips = chips.filter(
+    (c) => !c.active && c.key.startsWith("cat-") && c.key !== "cat-all"
+  );
+  const sortedChips = [
+    ...(allChip.active ? [allChip] : []),
+    ...activeCatChips,
+    ...activeTagChips,
+    ...inactiveTagChips,
+    ...inactiveCatChips,
+    ...(!allChip.active ? [allChip] : []),
+  ];
   const activeFilterCount =
     selectedCategories.length + selectedTags.length;
   const headerDisplay =
@@ -342,16 +371,20 @@ export default async function ProductsPage({ searchParams }: Props) {
         {/* 统一筛选：分类（单选）+ 标签（多选），默认显示一排 */}
         {(categories.length > 0 || tags.length > 0) && (
           <FilterCollapse activeCount={activeFilterCount}>
-            <TagFilterChips
-              chips={sortedChips.map((c) => ({
-                ...c,
-                tag: c.key.startsWith("tag-")
-                  ? c.label.slice(1)
-                  : c.key.startsWith("cat-") && c.key !== "cat-all"
-                    ? `cat:${c.label}`
-                    : undefined,
-              }))}
-            />
+            {sortedChips.map((chip) => (
+              <Link
+                key={chip.key}
+                href={chip.href}
+                className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${
+                  chip.active
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
+                }`}
+              >
+                {chip.active && chip.check ? "✓ " : ""}
+                {chip.label}
+              </Link>
+            ))}
           </FilterCollapse>
         )}
 
