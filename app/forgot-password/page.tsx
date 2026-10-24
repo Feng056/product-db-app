@@ -60,13 +60,15 @@ export default function ForgotPasswordPage() {
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              备注（选填）
+              重置原因说明
             </label>
             <textarea
               name="note"
+              required
+              minLength={5}
               maxLength={200}
               rows={3}
-              placeholder="如：我是张三，麻烦重置一下"
+              placeholder="请说明为什么需要重置密码，如：忘记密码、账号被他人登录过等"
               className={inputCls}
             />
           </div>

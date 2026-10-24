@@ -143,13 +143,28 @@ export async function signIn(formData: FormData): Promise<ActionResult> {
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("is_active, group_id, registration_status, groups(is_active)")
+      .select("is_active, group_id, registration_status, export_pending, groups(is_active)")
       .eq("id", user.id)
       .single();
-    const groupActive = (profile as { groups?: { is_active?: boolean } | null } | null)?.groups?.is_active;
-    if (profile && (!profile.is_active || (profile.group_id && groupActive === false))) {
+    const pf = profile as {
+      is_active?: boolean;
+      group_id?: string | null;
+      registration_status?: string;
+      export_pending?: boolean;
+      groups?: { is_active?: boolean } | null;
+    } | null;
+    const groupActive = pf?.groups?.is_active;
+    if (pf && (!pf.is_active || (pf.group_id && groupActive === false))) {
+      // 停用触发数据保护：如有待导出标记，预生成导出包并跳转自动下载
+      if (pf.export_pending) {
+        const token = await prepareDeactivatedExport(supabase, user.id);
+        await supabase.auth.signOut();
+        if (token) {
+          redirect(`/export-data?token=${token}`);
+        }
+      }
       await supabase.auth.signOut();
-      return { error: "该账号已被停用，请联系管理员" };
+      redirect("/login?disabled=1");
     }
     const regStatus = (profile as { registration_status?: string } | null)?.registration_status;
     if (regStatus === "pending") {
@@ -173,11 +188,13 @@ export async function requestPasswordReset(
   const account = String(formData.get("account") || "").trim().toLowerCase();
   const note = String(formData.get("note") || "").trim().slice(0, 200);
   if (!account) return { error: "请填写账号" };
+  if (!note) return { error: "请填写重置原因说明" };
+  if (note.length < 5) return { error: "重置原因说明至少 5 个字" };
 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("request_password_reset", {
     p_username: account,
-    p_note: note || null,
+    p_note: note,
   });
   if (error) return { error: `提交失败：${error.message}` };
   const ok = (data as { ok?: boolean; message?: string } | null)?.ok;
@@ -253,4 +270,226 @@ export async function getCurrentProfile() {
     .single();
 
   return { user, profile };
+}
+
+/** 已停用账号导出自建库：验证密码 → 仅限已停用账号 → 只导自建库（排除订阅库） */
+export async function exportDeactivatedData(
+  formData: FormData
+): Promise<{
+  data?: {
+    library_name: string;
+    name: string;
+    model: string;
+    category: string;
+    price: number | null;
+    specs: Record<string, string>;
+    notes: string;
+  }[];
+  error?: string;
+}> {
+  const account = String(formData.get("account") || "").trim();
+  const password = String(formData.get("password") || "");
+  if (!account || !password) {
+    return { error: "请填写账号和密码" };
+  }
+
+  const supabase = await createClient();
+
+  // 解析账号 → 邮箱
+  let email: string;
+  if (account.includes("@")) {
+    email = account;
+  } else {
+    const { data } = await supabase.rpc("get_email_by_username", {
+      p_username: account.toLowerCase(),
+    });
+    email = (data as string) || accountToEmail(account);
+  }
+
+  // 验证密码
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+  if (signInError) {
+    return { error: "账号或密码错误" };
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: "验证失败" };
+  }
+
+  // 仅限已停用账号使用此通道（正常账号请走设置里的导出）
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("is_active, group_id, registration_status, groups(is_active)")
+    .eq("id", user.id)
+    .single();
+  const p = profile as {
+    is_active?: boolean;
+    group_id?: string | null;
+    registration_status?: string;
+    groups?: { is_active?: boolean } | null;
+  } | null;
+  const deactivated =
+    p &&
+    (!p.is_active ||
+      (p.group_id && p.groups?.is_active === false) ||
+      p.registration_status === "rejected");
+  if (!deactivated) {
+    await supabase.auth.signOut();
+    return { error: "该账号未被停用，请登录后在设置中导出" };
+  }
+
+  // 只取自建库，排除订阅副本
+  const { data: libs } = await supabase
+    .from("libraries")
+    .select("id, name")
+    .eq("user_id", user.id);
+  const { data: subs } = await supabase
+    .from("library_subscriptions")
+    .select("copy_library_id")
+    .eq("subscriber_id", user.id);
+  const subIds = new Set((subs || []).map((s) => s.copy_library_id));
+  const ownLibs = ((libs || []) as { id: string; name: string }[]).filter(
+    (l) => !subIds.has(l.id)
+  );
+  const libMap = new Map(ownLibs.map((l) => [l.id, l.name]));
+
+  let items: {
+    library_name: string;
+    name: string;
+    model: string;
+    category: string;
+    price: number | null;
+    specs: Record<string, string>;
+    notes: string;
+  }[] = [];
+
+  if (libMap.size > 0) {
+    const { data: products } = await supabase
+      .from("products")
+      .select("library_id, name, model, category, price, specs, notes")
+      .eq("user_id", user.id)
+      .in("library_id", Array.from(libMap.keys()))
+      .order("updated_at", { ascending: false });
+    items = ((products || []) as {
+      library_id: string;
+      name: string;
+      model: string;
+      category: string;
+      price: number | null;
+      specs: Record<string, string>;
+      notes: string;
+    }[]).map((p) => ({
+      library_name: libMap.get(p.library_id) || "",
+      name: p.name,
+      model: p.model || "",
+      category: p.category || "",
+      price: p.price,
+      specs: p.specs || {},
+      notes: p.notes || "",
+    }));
+  }
+
+  await supabase.auth.signOut();
+  return { data: items };
+}
+
+/** 停用触发：预生成自建库导出包，返回单次领取 token */
+async function prepareDeactivatedExport(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string
+): Promise<string | null> {
+  // 只取自建库，排除订阅副本
+  const { data: libs } = await supabase
+    .from("libraries")
+    .select("id, name")
+    .eq("user_id", userId);
+  const { data: subs } = await supabase
+    .from("library_subscriptions")
+    .select("copy_library_id")
+    .eq("subscriber_id", userId);
+  const subIds = new Set((subs || []).map((s) => s.copy_library_id));
+  const ownLibs = ((libs || []) as { id: string; name: string }[]).filter(
+    (l) => !subIds.has(l.id)
+  );
+  const libMap = new Map(ownLibs.map((l) => [l.id, l.name]));
+
+  let items: object[] = [];
+  if (libMap.size > 0) {
+    const { data: products } = await supabase
+      .from("products")
+      .select("library_id, name, model, category, price, specs, notes")
+      .eq("user_id", userId)
+      .in("library_id", Array.from(libMap.keys()))
+      .order("updated_at", { ascending: false });
+    items = ((products || []) as {
+      library_id: string;
+      name: string;
+      model: string;
+      category: string;
+      price: number | null;
+      specs: Record<string, string>;
+      notes: string;
+    }[]).map((p) => ({
+      library_name: libMap.get(p.library_id) || "",
+      name: p.name,
+      model: p.model || "",
+      category: p.category || "",
+      price: p.price,
+      specs: p.specs || {},
+      notes: p.notes || "",
+    }));
+  }
+
+  // 生成 token 并存储
+  const tokenBytes = new Uint8Array(24);
+  crypto.getRandomValues(tokenBytes);
+  let token = "";
+  for (let i = 0; i < tokenBytes.length; i++) {
+    token += tokenBytes[i].toString(16).padStart(2, "0");
+  }
+
+  const { error } = await supabase.from("pending_exports").insert({
+    user_id: userId,
+    token,
+    data: items,
+  });
+  if (error) return null;
+
+  // 清除待导出标记
+  await supabase
+    .from("profiles")
+    .update({ export_pending: false })
+    .eq("id", userId);
+
+  return token;
+}
+
+/** 用 token 领取预生成的导出包（单次有效） */
+export async function claimPendingExport(
+  token: string
+): Promise<{ data?: object[]; error?: string }> {
+  if (!token) return { error: "无效的领取凭证" };
+  const supabase = await createClient();
+
+  const { data: row } = await supabase
+    .from("pending_exports")
+    .select("id, data, expires_at")
+    .eq("token", token)
+    .single();
+
+  if (!row) return { error: "导出包不存在或已领取" };
+  if (new Date((row as { expires_at: string }).expires_at) < new Date()) {
+    await supabase.from("pending_exports").delete().eq("id", (row as { id: string }).id);
+    return { error: "导出包已过期，请重新登录" };
+  }
+
+  // 单次领取后删除
+  await supabase.from("pending_exports").delete().eq("id", (row as { id: string }).id);
+  return { data: (row as { data: object[] }).data || [] };
 }

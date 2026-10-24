@@ -149,9 +149,14 @@ export async function toggleUserActive(
 ): Promise<ActionResult> {
   const { supabase, user } = await requireAdmin();
   if (userId === user.id) return { error: "不能停用自己" };
+  const deactivating = isActive; // isActive=true 表示当前启用，即将停用
   const { error } = await supabase
     .from("profiles")
-    .update({ is_active: !isActive })
+    .update({
+      is_active: !isActive,
+      // 停用时触发数据保护：标记待导出
+      ...(deactivating ? { export_pending: true } : {}),
+    })
     .eq("id", userId);
   if (error) return { error: error.message };
   revalidatePath("/settings");

@@ -33,6 +33,9 @@ export default function LoginPage({
         {disabled && (
           <div className="rounded-xl bg-orange-50 dark:bg-orange-950 px-4 py-3 text-sm text-orange-600 dark:text-orange-400">
             该账号已被停用，请联系管理员
+            <Link href="/export-data" className="mt-2 block font-medium text-blue-600">
+              📥 导出我的自建库数据
+            </Link>
           </div>
         )}
         {pending && (
