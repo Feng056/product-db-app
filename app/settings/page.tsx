@@ -6,6 +6,7 @@ import { toggleInviteCode, deleteInviteCode } from "@/actions/admin";
 import BottomNav from "@/components/BottomNav";
 import LogoutButton from "@/components/LogoutButton";
 import AccountEditor from "@/components/AccountEditor";
+import PasswordChangeForm from "@/components/PasswordChangeForm";
 import CreateInviteCodeForm from "@/components/CreateInviteCodeForm";
 import ThemeSelector from "@/components/ThemeSelector";
 import { formatDateTime } from "@/lib/utils";
@@ -100,6 +101,7 @@ export default async function SettingsPage({
               email={profile?.email || null}
               avatarUrl={avatarUrl}
             />
+            <PasswordChangeForm />
             <div className="mt-3">
               <LogoutButton />
             </div>

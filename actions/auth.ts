@@ -86,6 +86,50 @@ export async function signOut() {
   redirect("/login");
 }
 
+/** 修改密码：校验当前密码后更新 */
+export async function changePassword(
+  formData: FormData
+): Promise<ActionResult> {
+  const currentPassword = String(formData.get("currentPassword") || "");
+  const newPassword = String(formData.get("newPassword") || "");
+
+  if (!currentPassword || !newPassword) {
+    return { error: "请填写当前密码和新密码" };
+  }
+  if (newPassword.length < 6) {
+    return { error: "新密码至少 6 位" };
+  }
+  if (currentPassword === newPassword) {
+    return { error: "新密码不能与当前密码相同" };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.email) {
+    return { error: "请先登录" };
+  }
+
+  // 先验证当前密码是否正确
+  const { error: verifyError } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: currentPassword,
+  });
+  if (verifyError) {
+    return { error: "当前密码不正确" };
+  }
+
+  const { error: updateError } = await supabase.auth.updateUser({
+    password: newPassword,
+  });
+  if (updateError) {
+    return { error: `修改失败：${updateError.message}` };
+  }
+
+  return { message: "密码修改成功" };
+}
+
 /** 获取当前登录用户 + profile（含是否管理员） */
 export async function getCurrentProfile() {
   const supabase = await createClient();
