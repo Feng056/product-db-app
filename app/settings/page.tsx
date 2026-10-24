@@ -9,8 +9,10 @@ import AccountEditor from "@/components/AccountEditor";
 import PasswordChangeForm from "@/components/PasswordChangeForm";
 import CreateInviteCodeForm from "@/components/CreateInviteCodeForm";
 import ThemeSelector from "@/components/ThemeSelector";
+import GroupManager from "@/components/GroupManager";
+import UserManager from "@/components/UserManager";
 import { formatDateTime } from "@/lib/utils";
-import type { InviteCode, Profile } from "@/lib/types";
+import type { InviteCode, Profile, Group } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -62,7 +64,7 @@ export default async function SettingsPage({
   const isAdmin = !!profile?.is_admin;
 
   const supabase = await createClient();
-  const tab = searchParams.tab === "codes" ? "codes" : "users";
+  const tab = searchParams.tab === "codes" ? "codes" : searchParams.tab === "groups" ? "groups" : "users";
 
   // 头像公开链接
   const avatarPath = (profile as { avatar_path?: string } | null)?.avatar_path || "";
@@ -71,13 +73,19 @@ export default async function SettingsPage({
     : null;
 
   // 管理员数据
-  type UserRow = Profile & { invite_codes: { source_label: string } | null };
+  type UserRow = Profile & {
+    invite_codes: { source_label: string } | null;
+    groups: { name: string } | null;
+  };
   let userList: UserRow[] = [];
   let codeList: InviteCode[] = [];
+  let groupList: Group[] = [];
+  let allTags: string[] = [];
+  let memberCounts: Record<string, number> = {};
   if (isAdmin) {
     const { data: users } = await supabase
       .from("profiles")
-      .select("id, email, username, display_name, is_admin, created_at, invite_codes(source_label)")
+      .select("id, email, username, display_name, is_admin, is_active, tags, group_id, created_at, invite_codes(source_label), groups(name)")
       .order("created_at", { ascending: false });
     userList = (users || []) as unknown as UserRow[];
     const { data: codes } = await supabase
@@ -85,6 +93,16 @@ export default async function SettingsPage({
       .select("*")
       .order("created_at", { ascending: false });
     codeList = (codes || []) as InviteCode[];
+    const { data: groups } = await supabase
+      .from("groups")
+      .select("*")
+      .order("created_at", { ascending: true });
+    groupList = (groups || []) as Group[];
+    const { data: tagsData } = await supabase.rpc("get_all_user_tags");
+    allTags = ((tagsData as string[]) || []).sort();
+    for (const u of userList) {
+      if (u.group_id) memberCounts[u.group_id] = (memberCounts[u.group_id] || 0) + 1;
+    }
   }
 
   return (
@@ -161,7 +179,7 @@ export default async function SettingsPage({
           <section className="mt-6">
             <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400 ">管理</h2>
 
-            <div className="grid grid-cols-2 gap-2 rounded-2xl bg-gray-100 dark:bg-gray-800 p-1">
+            <div className="grid grid-cols-3 gap-2 rounded-2xl bg-gray-100 dark:bg-gray-800 p-1">
               <Link
                 href="/settings?tab=users"
                 className={`rounded-xl py-2 text-center text-sm font-medium ${
@@ -169,6 +187,14 @@ export default async function SettingsPage({
                 }`}
               >
                 用户（{userList.length}）
+              </Link>
+              <Link
+                href="/settings?tab=groups"
+                className={`rounded-xl py-2 text-center text-sm font-medium ${
+                  tab === "groups" ? "bg-white dark:bg-gray-900 shadow-sm" : "text-gray-500 dark:text-gray-400"
+                }`}
+              >
+                分组（{groupList.length}）
               </Link>
               <Link
                 href="/settings?tab=codes"
@@ -181,38 +207,18 @@ export default async function SettingsPage({
             </div>
 
             {tab === "users" ? (
-              <div className="mt-3 space-y-2">
-                {userList.length === 0 && (
-                  <p className="rounded-2xl bg-white dark:bg-gray-900 p-8 text-center text-sm text-gray-400 dark:text-gray-500">
-                    暂无用户
-                  </p>
-                )}
-                {userList.map((u) => (
-                  <div key={u.id} className="rounded-2xl bg-white dark:bg-gray-900 p-4">
-                    <div className="flex items-center justify-between">
-                      <span className="truncate text-sm font-semibold">
-                        {u.display_name || u.username || u.email}
-                      </span>
-                      {u.is_admin && (
-                        <span className="ml-2 shrink-0 rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">
-                          管理员
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-0.5 truncate text-xs text-gray-400 dark:text-gray-500">{u.username || u.email}</div>
-                    <div className="mt-1 text-xs text-gray-500 dark:text-gray-400 ">
-                      来源：{u.invite_codes?.source_label || "—"}
-                    </div>
-                    <div className="text-xs text-gray-400 dark:text-gray-500">
-                      注册时间：{formatDateTime(u.created_at)}
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <UserManager
+                users={userList}
+                groups={groupList}
+                allTags={allTags}
+                adminId={user.id}
+              />
+            ) : tab === "groups" ? (
+              <GroupManager groups={groupList} memberCounts={memberCounts} />
             ) : (
               <>
                 <div className="mt-3">
-                  <CreateInviteCodeForm />
+                  <CreateInviteCodeForm groups={groupList} />
                 </div>
                 <div className="mt-3 space-y-2">
                   {codeList.length === 0 && (
@@ -233,6 +239,9 @@ export default async function SettingsPage({
                       </div>
                       <div className="mt-1 text-xs text-gray-500 dark:text-gray-400 ">
                         来源：{c.source_label} · 已用 {c.used_count}/{c.max_uses} 次
+                        {c.group_id && groupList.find(g => g.id === c.group_id)
+                          ? ` · 分组：${groupList.find(g => g.id === c.group_id)!.name}`
+                          : ""}
                       </div>
                       <div className="text-xs text-gray-400 dark:text-gray-500">
                         创建于 {formatDateTime(c.created_at)}

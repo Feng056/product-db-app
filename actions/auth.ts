@@ -104,6 +104,23 @@ export async function signIn(formData: FormData): Promise<ActionResult> {
   if (error) {
     return { error: "账号或密码错误" };
   }
+
+  // 检查账号 / 分组是否被停用
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_active, group_id, groups(is_active)")
+      .eq("id", user.id)
+      .single();
+    const groupActive = (profile as { groups?: { is_active?: boolean } | null } | null)?.groups?.is_active;
+    if (profile && (!profile.is_active || (profile.group_id && groupActive === false))) {
+      await supabase.auth.signOut();
+      return { error: "该账号已被停用，请联系管理员" };
+    }
+  }
   // 只允许站内跳转，防止开放重定向
   const target = next.startsWith("/") && !next.startsWith("//") ? next : "/products";
   redirect(target);

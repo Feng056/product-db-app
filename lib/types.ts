@@ -38,8 +38,18 @@ export type Profile = {
   header_display: string;
   is_admin: boolean;
   invite_code_id: string | null;
+  group_id: string | null;
+  is_active: boolean;
+  tags: string[];
   created_at: string;
   invite_codes?: { source_label: string } | null;
+};
+
+export type Group = {
+  id: string;
+  name: string;
+  is_active: boolean;
+  created_at: string;
 };
 
 export type InviteCode = {
@@ -51,6 +61,7 @@ export type InviteCode = {
   max_uses: number;
   used_count: number;
   is_active: boolean;
+  group_id: string | null;
 };
 
 export type LibraryShare = {

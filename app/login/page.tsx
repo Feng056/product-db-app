@@ -8,10 +8,11 @@ import { inputCls } from "@/components/SpecsEditor";
 export default function LoginPage({
   searchParams,
 }: {
-  searchParams: { next?: string };
+  searchParams: { next?: string; disabled?: string };
 }) {
   const [error, setError] = useState<string | null>(null);
   const next = searchParams.next || "";
+  const disabled = searchParams.disabled === "1";
 
   async function onSubmit(formData: FormData) {
     setError(null);
@@ -28,6 +29,11 @@ export default function LoginPage({
 
       <form action={onSubmit} className="mt-8 space-y-4">
         {next && <input type="hidden" name="next" value={next} />}
+        {disabled && (
+          <div className="rounded-xl bg-orange-50 dark:bg-orange-950 px-4 py-3 text-sm text-orange-600 dark:text-orange-400">
+            该账号已被停用，请联系管理员
+          </div>
+        )}
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">账号</label>
           <input name="account" required placeholder="字母/数字组合，如 feng123" className={inputCls} />

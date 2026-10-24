@@ -5,7 +5,7 @@ import { createInviteCode } from "@/actions/admin";
 import { inputCls } from "./SpecsEditor";
 
 /** 创建邀请码表单（客户端，展示创建结果提示） */
-export default function CreateInviteCodeForm() {
+export default function CreateInviteCodeForm({ groups }: { groups: { id: string; name: string; is_active: boolean }[] }) {
   const [result, setResult] = useState<{ error?: string; message?: string } | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -44,6 +44,21 @@ export default function CreateInviteCodeForm() {
           className={`${inputCls} w-28`}
         />
         <span className="text-xs text-gray-500 dark:text-gray-400 ">可使用次数</span>
+      </div>
+      <div>
+        <select
+          name="groupId"
+          className={inputCls}
+          defaultValue=""
+        >
+          <option value="">不指定分组（注册后未分组）</option>
+          {groups.filter(g => g.is_active !== false).map((g) => (
+            <option key={g.id} value={g.id}>
+              注册后加入：{g.name}
+            </option>
+          ))}
+        </select>
+        <p className="mt-1 text-xs text-gray-400">用此码注册的用户会自动加入所选分组</p>
       </div>
 
       {result?.error && (

@@ -24,6 +24,41 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/products", request.url));
   }
 
+  // 已登录但被停用（账号或分组）：强制登出
+  if (user && isProtected) {
+    try {
+      const { createServerClient } = await import("@supabase/ssr");
+      const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          cookies: {
+            getAll() {
+              return request.cookies.getAll();
+            },
+            setAll() {},
+          },
+        }
+      );
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_active, group_id, groups(is_active)")
+        .eq("id", user.id)
+        .single();
+      const p = profile as {
+        is_active?: boolean;
+        group_id?: string | null;
+        groups?: { is_active?: boolean } | null;
+      } | null;
+      if (p && (!p.is_active || (p.group_id && p.groups?.is_active === false))) {
+        await supabase.auth.signOut();
+        return NextResponse.redirect(new URL("/login?disabled=1", request.url));
+      }
+    } catch {
+      // 查询失败时不阻断，放行
+    }
+  }
+
   return supabaseResponse;
 }
 
