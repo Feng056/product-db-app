@@ -7,10 +7,12 @@ import { updateAvatar, updateDisplayName } from "@/actions/profile";
 export default function AccountEditor({
   displayName,
   email,
+  username,
   avatarUrl,
 }: {
   displayName: string | null;
   email: string | null;
+  username: string | null;
   avatarUrl: string | null;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -127,7 +129,7 @@ export default function AccountEditor({
               </button>
             </div>
           )}
-          <div className="mt-0.5 truncate text-xs text-gray-400 dark:text-gray-500">{email}</div>
+          <div className="mt-0.5 truncate text-xs text-gray-400 dark:text-gray-500">账号：{username || email}</div>
         </div>
       </div>
       {error && <p className="mt-2 text-xs text-red-500">{error}</p>}

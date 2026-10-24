@@ -77,7 +77,7 @@ export default async function SettingsPage({
   if (isAdmin) {
     const { data: users } = await supabase
       .from("profiles")
-      .select("id, email, display_name, is_admin, created_at, invite_codes(source_label)")
+      .select("id, email, username, display_name, is_admin, created_at, invite_codes(source_label)")
       .order("created_at", { ascending: false });
     userList = (users || []) as unknown as UserRow[];
     const { data: codes } = await supabase
@@ -99,6 +99,7 @@ export default async function SettingsPage({
             <AccountEditor
               displayName={profile?.display_name || null}
               email={profile?.email || null}
+              username={profile?.username || null}
               avatarUrl={avatarUrl}
             />
             <PasswordChangeForm />
@@ -190,7 +191,7 @@ export default async function SettingsPage({
                   <div key={u.id} className="rounded-2xl bg-white dark:bg-gray-900 p-4">
                     <div className="flex items-center justify-between">
                       <span className="truncate text-sm font-semibold">
-                        {u.display_name || u.email}
+                        {u.display_name || u.username || u.email}
                       </span>
                       {u.is_admin && (
                         <span className="ml-2 shrink-0 rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">
@@ -198,7 +199,7 @@ export default async function SettingsPage({
                         </span>
                       )}
                     </div>
-                    <div className="mt-0.5 truncate text-xs text-gray-400 dark:text-gray-500">{u.email}</div>
+                    <div className="mt-0.5 truncate text-xs text-gray-400 dark:text-gray-500">{u.username || u.email}</div>
                     <div className="mt-1 text-xs text-gray-500 dark:text-gray-400 ">
                       来源：{u.invite_codes?.source_label || "—"}
                     </div>

@@ -32,6 +32,7 @@ export type Product = {
 export type Profile = {
   id: string;
   email: string | null;
+  username: string | null;
   display_name: string;
   avatar_path: string;
   header_display: string;

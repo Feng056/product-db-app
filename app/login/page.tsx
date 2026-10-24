@@ -29,8 +29,8 @@ export default function LoginPage({
       <form action={onSubmit} className="mt-8 space-y-4">
         {next && <input type="hidden" name="next" value={next} />}
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">邮箱</label>
-          <input name="email" type="email" required placeholder="you@example.com" className={inputCls} />
+          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">账号</label>
+          <input name="account" required placeholder="字母/数字组合，如 feng123" className={inputCls} />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">密码</label>

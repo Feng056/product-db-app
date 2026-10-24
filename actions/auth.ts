@@ -5,17 +5,33 @@ import { createClient } from "@/lib/supabase/server";
 
 type ActionResult = { error?: string; message?: string };
 
+/** 账号制：内部邮箱域名（Supabase Auth 仍需要邮箱格式） */
+const FAKE_EMAIL_DOMAIN = "productdb.local";
+
+/** 账号 → 内部邮箱 */
+function accountToEmail(account: string): string {
+  return `${account.toLowerCase()}@${FAKE_EMAIL_DOMAIN}`;
+}
+
+/** 账号格式：3-20 位字母、数字、下划线、连字符、点 */
+function isValidAccount(account: string): boolean {
+  return /^[a-zA-Z0-9_.-]{3,20}$/.test(account);
+}
+
 /** 注册：必须填写有效邀请码 */
 export async function signUp(formData: FormData): Promise<ActionResult> {
-  const email = String(formData.get("email") || "").trim();
+  const account = String(formData.get("account") || "").trim().toLowerCase();
   const password = String(formData.get("password") || "");
   const displayName = String(formData.get("displayName") || "").trim();
   const inviteCode = String(formData.get("inviteCode") || "")
     .trim()
     .toUpperCase();
 
-  if (!email || !password || !inviteCode) {
-    return { error: "请填写邮箱、密码和邀请码" };
+  if (!account || !password || !inviteCode) {
+    return { error: "请填写账号、密码和邀请码" };
+  }
+  if (!isValidAccount(account)) {
+    return { error: "账号为 3-20 位字母、数字、下划线、连字符或点" };
   }
   if (!displayName) {
     return { error: "请填写昵称" };
@@ -24,6 +40,7 @@ export async function signUp(formData: FormData): Promise<ActionResult> {
     return { error: "密码至少 6 位" };
   }
 
+  const email = accountToEmail(account);
   const supabase = await createClient();
 
   // 1. 先校验邀请码（SECURITY DEFINER 函数，匿名可调用）
@@ -60,19 +77,32 @@ export async function signUp(formData: FormData): Promise<ActionResult> {
   redirect("/products");
 }
 
-/** 登录 */
+/** 登录：支持账号或邮箱 */
 export async function signIn(formData: FormData): Promise<ActionResult> {
-  const email = String(formData.get("email") || "").trim();
+  const account = String(formData.get("account") || "").trim();
   const password = String(formData.get("password") || "");
   const next = String(formData.get("next") || "");
-  if (!email || !password) {
-    return { error: "请填写邮箱和密码" };
+  if (!account || !password) {
+    return { error: "请填写账号和密码" };
   }
 
   const supabase = await createClient();
+
+  // 解析登录标识 → 真实邮箱
+  let email: string;
+  if (account.includes("@")) {
+    email = account; // 兼容老用户直接用邮箱登录
+  } else {
+    // 先查 username 对应的邮箱（兼容老用户），查不到则拼内部域名
+    const { data } = await supabase.rpc("get_email_by_username", {
+      p_username: account.toLowerCase(),
+    });
+    email = (data as string) || accountToEmail(account);
+  }
+
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
-    return { error: "邮箱或密码错误" };
+    return { error: "账号或密码错误" };
   }
   // 只允许站内跳转，防止开放重定向
   const target = next.startsWith("/") && !next.startsWith("//") ? next : "/products";
@@ -140,7 +170,7 @@ export async function getCurrentProfile() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, email, display_name, avatar_path, header_display, is_admin, invite_code_id, created_at")
+    .select("id, email, username, display_name, avatar_path, header_display, is_admin, invite_code_id, created_at")
     .eq("id", user.id)
     .single();
 
