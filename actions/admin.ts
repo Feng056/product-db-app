@@ -218,3 +218,87 @@ export async function rejectRegistration(userId: string): Promise<ActionResult> 
   revalidatePath("/settings");
   return {};
 }
+
+/* ================= 密码重置申请 ================= */
+
+/** 获取待处理的密码重置申请 */
+export async function getPendingPasswordResets(): Promise<
+  { id: string; username: string; display_name: string; note: string | null; created_at: string }[]
+> {
+  const { supabase } = await requireAdmin();
+  const { data } = await supabase
+    .from("password_reset_requests")
+    .select("id, username, display_name, note, created_at")
+    .eq("status", "pending")
+    .order("created_at", { ascending: true });
+  return (data || []) as {
+    id: string;
+    username: string;
+    display_name: string;
+    note: string | null;
+    created_at: string;
+  }[];
+}
+
+/** 管理员重置用户密码：生成临时密码（需 SUPABASE_SERVICE_ROLE_KEY） */
+export async function resetUserPassword(
+  requestId: string
+): Promise<{ tempPassword?: string; error?: string }> {
+  const { supabase } = await requireAdmin();
+
+  const { data: req } = await supabase
+    .from("password_reset_requests")
+    .select("id, user_id, username, status")
+    .eq("id", requestId)
+    .eq("status", "pending")
+    .single();
+  if (!req) return { error: "申请不存在或已处理" };
+
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceKey) {
+    return { error: "未配置 SUPABASE_SERVICE_ROLE_KEY，请联系技术支持" };
+  }
+
+  // 生成 8 位临时密码（字母+数字）
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+  let tempPassword = "";
+  const rand = new Uint8Array(8);
+  crypto.getRandomValues(rand);
+  for (let i = 0; i < rand.length; i++) {
+    tempPassword += chars[rand[i] % chars.length];
+  }
+
+  // 用 service_role 更新 Auth 密码
+  const { createClient: createAdminClient } = await import("@supabase/supabase-js");
+  const admin = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    serviceKey
+  );
+  const { error: updateError } = await admin.auth.admin.updateUserById(
+    req.user_id,
+    { password: tempPassword }
+  );
+  if (updateError) {
+    return { error: `重置失败：${updateError.message}` };
+  }
+
+  await supabase
+    .from("password_reset_requests")
+    .update({ status: "done" })
+    .eq("id", requestId);
+
+  revalidatePath("/settings");
+  return { tempPassword };
+}
+
+/** 驳回密码重置申请 */
+export async function rejectPasswordReset(requestId: string): Promise<ActionResult> {
+  const { supabase } = await requireAdmin();
+  const { error } = await supabase
+    .from("password_reset_requests")
+    .update({ status: "rejected" })
+    .eq("id", requestId);
+  if (error) return { error: error.message };
+  revalidatePath("/settings");
+  return {};
+}

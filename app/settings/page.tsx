@@ -12,6 +12,7 @@ import ThemeSelector from "@/components/ThemeSelector";
 import GroupManager from "@/components/GroupManager";
 import PublishReview from "@/components/PublishReview";
 import RegistrationReview from "@/components/RegistrationReview";
+import PasswordResetReview from "@/components/PasswordResetReview";
 import UserManager from "@/components/UserManager";
 import InviteCodeQR from "@/components/InviteCodeQR";
 import { formatDateTime } from "@/lib/utils";
@@ -67,7 +68,7 @@ export default async function SettingsPage({
   const isAdmin = !!profile?.is_admin;
 
   const supabase = await createClient();
-  const tab = searchParams.tab === "codes" ? "codes" : searchParams.tab === "groups" ? "groups" : searchParams.tab === "publish" ? "publish" : searchParams.tab === "regs" ? "regs" : "users";
+  const tab = searchParams.tab === "codes" ? "codes" : searchParams.tab === "groups" ? "groups" : searchParams.tab === "publish" ? "publish" : searchParams.tab === "regs" ? "regs" : searchParams.tab === "reset" ? "reset" : "users";
 
   // 头像公开链接
   const avatarPath = (profile as { avatar_path?: string } | null)?.avatar_path || "";
@@ -87,6 +88,7 @@ export default async function SettingsPage({
   let memberCounts: Record<string, number> = {};
   let pendingPublish: { id: string; name: string; owner_name: string; product_count: number; publish_requested_at: string }[] = [];
   let pendingRegs: { id: string; username: string; display_name: string; registration_note: string; created_at: string }[] = [];
+  let pendingResets: { id: string; username: string; display_name: string; note: string | null; created_at: string }[] = [];
   if (isAdmin) {
     const { data: users } = await supabase
       .from("profiles")
@@ -112,6 +114,8 @@ export default async function SettingsPage({
     pendingPublish = await getPendingPublishRequests();
     const { getPendingRegistrations } = await import("@/actions/admin");
     pendingRegs = await getPendingRegistrations();
+    const { getPendingPasswordResets } = await import("@/actions/admin");
+    pendingResets = await getPendingPasswordResets();
   }
 
   return (
@@ -188,7 +192,7 @@ export default async function SettingsPage({
           <section className="mt-6">
             <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400 ">管理</h2>
 
-            <div className="grid grid-cols-5 gap-1 rounded-2xl bg-gray-100 dark:bg-gray-800 p-1">
+            <div className="grid grid-cols-3 gap-1 rounded-2xl bg-gray-100 dark:bg-gray-800 p-1">
               <Link
                 href="/settings?tab=users"
                 className={`rounded-xl py-2 text-center text-xs font-medium ${
@@ -206,6 +210,16 @@ export default async function SettingsPage({
                 分组
               </Link>
               <Link
+                href="/settings?tab=regs"
+                className={`rounded-xl py-2 text-center text-xs font-medium ${
+                  tab === "regs" ? "bg-white dark:bg-gray-900 shadow-sm" : "text-gray-500 dark:text-gray-400"
+                }`}
+              >
+                注册审核
+              </Link>
+            </div>
+            <div className="mt-1 grid grid-cols-3 gap-1 rounded-2xl bg-gray-100 dark:bg-gray-800 p-1">
+              <Link
                 href="/settings?tab=codes"
                 className={`rounded-xl py-2 text-center text-xs font-medium ${
                   tab === "codes" ? "bg-white dark:bg-gray-900 shadow-sm" : "text-gray-500 dark:text-gray-400"
@@ -222,12 +236,12 @@ export default async function SettingsPage({
                 发布审核
               </Link>
               <Link
-                href="/settings?tab=regs"
+                href="/settings?tab=reset"
                 className={`rounded-xl py-2 text-center text-xs font-medium ${
-                  tab === "regs" ? "bg-white dark:bg-gray-900 shadow-sm" : "text-gray-500 dark:text-gray-400"
+                  tab === "reset" ? "bg-white dark:bg-gray-900 shadow-sm" : "text-gray-500 dark:text-gray-400"
                 }`}
               >
-                注册审核
+                密码重置
               </Link>
             </div>
 
@@ -244,6 +258,8 @@ export default async function SettingsPage({
               <PublishReview requests={pendingPublish} />
             ) : tab === "regs" ? (
               <RegistrationReview requests={pendingRegs} />
+            ) : tab === "reset" ? (
+              <PasswordResetReview requests={pendingResets} />
             ) : (
               <>
                 <div className="mt-3">

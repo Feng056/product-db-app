@@ -166,6 +166,27 @@ export async function signIn(formData: FormData): Promise<ActionResult> {
   redirect(target);
 }
 
+/** 申请重置密码（未登录可调用） */
+export async function requestPasswordReset(
+  formData: FormData
+): Promise<ActionResult> {
+  const account = String(formData.get("account") || "").trim().toLowerCase();
+  const note = String(formData.get("note") || "").trim().slice(0, 200);
+  if (!account) return { error: "请填写账号" };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("request_password_reset", {
+    p_username: account,
+    p_note: note || null,
+  });
+  if (error) return { error: `提交失败：${error.message}` };
+  const ok = (data as { ok?: boolean; message?: string } | null)?.ok;
+  if (!ok) {
+    return { error: (data as { message?: string } | null)?.message || "提交失败" };
+  }
+  return {};
+}
+
 /** 登出 */
 export async function signOut() {
   const supabase = await createClient();

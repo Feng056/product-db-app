@@ -64,7 +64,11 @@ export default function LoginPage({
       <p className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400 ">
         还没有账号？
         <Link href="/register" className="font-medium text-blue-600">
-          去注册（需要邀请码）
+          去注册
+        </Link>
+        <span className="mx-2">·</span>
+        <Link href="/forgot-password" className="font-medium text-blue-600">
+          忘记密码
         </Link>
       </p>
     </main>
