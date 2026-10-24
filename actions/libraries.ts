@@ -296,7 +296,7 @@ export async function rejectPublish(libraryId: string): Promise<ActionResult> {
 
 /** 获取已发布的库（发现页用，含主人昵称和产品数） */
 export async function getPublishedLibraries(): Promise<
-  { id: string; name: string; owner_name: string; product_count: number; created_at: string; publish_categories?: string[] | null }[]
+  { id: string; name: string; owner_name: string; product_count: number; created_at: string; publish_categories?: string[] | null; sub_count: number }[]
 > {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -336,6 +336,16 @@ export async function getPublishedLibraries(): Promise<
     .select("library_id")
     .eq("subscriber_id", user.id);
   const subbed = new Set((subs || []).map((s) => s.library_id));
+  // 各发布库的订阅人数
+  const { data: allSubs } = await supabase
+    .from("library_subscriptions")
+    .select("library_id")
+    .in("library_id", libs.map((l) => l.id));
+  const subCountMap: Record<string, number> = {};
+  for (const s of allSubs || []) {
+    const id = (s as { library_id: string }).library_id;
+    subCountMap[id] = (subCountMap[id] || 0) + 1;
+  }
   return libs
     .filter((l) => !subbed.has(l.id))
     .map((l) => ({
@@ -345,6 +355,7 @@ export async function getPublishedLibraries(): Promise<
       product_count: countMap[l.id] || 0,
       created_at: l.created_at,
       publish_categories: (l as { publish_categories?: string[] | null }).publish_categories || null,
+      sub_count: subCountMap[l.id] || 0,
     }));
 }
 

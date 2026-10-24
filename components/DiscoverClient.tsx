@@ -11,6 +11,7 @@ export type PublishedLib = {
   product_count: number;
   created_at: string;
   publish_categories?: string[] | null;
+  sub_count: number;
 };
 
 /** 已发布库列表 + 一键订阅 */
@@ -52,7 +53,7 @@ export default function DiscoverClient({ libs }: { libs: PublishedLib[] }) {
                 {lib.name}
               </div>
               <div className="mt-0.5 text-xs text-gray-400">
-                {lib.owner_name} · {lib.product_count} 个产品
+                {lib.owner_name} · {lib.product_count} 个产品 · {lib.sub_count} 人订阅
               </div>
             </div>
             <button

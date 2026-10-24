@@ -64,7 +64,7 @@ export default function SubscribePlaza({ libs }: { libs: PublishedLib[] }) {
                     {lib.name}
                   </div>
                   <div className="text-xs text-gray-400">
-                    {lib.owner_name} · {lib.product_count} 个产品
+                    {lib.owner_name} · {lib.product_count} 个产品 · {lib.sub_count} 人订阅
                     {lib.publish_categories && lib.publish_categories.length > 0 && (
                       <span className="ml-1 text-purple-600 dark:text-purple-400">
                         · 仅{lib.publish_categories.length}个分类

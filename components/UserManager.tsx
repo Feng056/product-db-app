@@ -20,11 +20,13 @@ export default function UserManager({
   groups,
   allTags,
   adminId,
+  subCountsByUser = {},
 }: {
   users: UserRow[];
   groups: Group[];
   allTags: string[];
   adminId: string;
+  subCountsByUser?: Record<string, number>;
 }) {
   const [search, setSearch] = useState("");
   const [groupFilter, setGroupFilter] = useState("__all");
@@ -177,6 +179,11 @@ export default function UserManager({
             </div>
             <div className="mt-0.5 text-xs text-gray-400">
               账号：{u.username || u.email} · {groupName(u)}
+              {(subCountsByUser[u.id] || 0) > 0 && (
+                <span className="ml-1 text-purple-600 dark:text-purple-400">
+                  · 订阅 {subCountsByUser[u.id]} 个库
+                </span>
+              )}
             </div>
 
             {/* 标签 */}

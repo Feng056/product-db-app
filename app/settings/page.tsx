@@ -36,6 +36,7 @@ export default async function SettingsPage() {
   let groupList: Group[] = [];
   let allTags: string[] = [];
   let memberCounts: Record<string, number> = {};
+  let subCountsByUser: Record<string, number> = {};
   let pendingPublish: { id: string; name: string; owner_name: string; product_count: number; publish_requested_at: string }[] = [];
   let pendingRegs: { id: string; username: string; display_name: string; registration_note: string; created_at: string }[] = [];
   let pendingResets: { id: string; username: string; display_name: string; note: string | null; created_at: string }[] = [];
@@ -60,6 +61,14 @@ export default async function SettingsPage() {
     allTags = ((tagsData as string[]) || []).sort();
     for (const u of userList) {
       if (u.group_id) memberCounts[u.group_id] = (memberCounts[u.group_id] || 0) + 1;
+    }
+    // 各用户订阅的库个数
+    const { data: subRows } = await supabase
+      .from("library_subscriptions")
+      .select("subscriber_id");
+    for (const s of subRows || []) {
+      const sid = (s as { subscriber_id: string }).subscriber_id;
+      subCountsByUser[sid] = (subCountsByUser[sid] || 0) + 1;
     }
     const { getPendingPublishRequests } = await import("@/actions/libraries");
     pendingPublish = await getPendingPublishRequests();
@@ -148,6 +157,7 @@ export default async function SettingsPage() {
             allTags={allTags}
             adminId={user.id}
             memberCounts={memberCounts}
+            subCountsByUser={subCountsByUser}
             codeList={codeList}
             pendingPublish={pendingPublish}
             pendingRegs={pendingRegs}
