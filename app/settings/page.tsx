@@ -12,6 +12,7 @@ import ThemeSelector from "@/components/ThemeSelector";
 import GroupManager from "@/components/GroupManager";
 import PublishReview from "@/components/PublishReview";
 import RegistrationReview from "@/components/RegistrationReview";
+import ShutdownManager from "@/components/ShutdownManager";
 import PasswordResetReview from "@/components/PasswordResetReview";
 import UserManager from "@/components/UserManager";
 import InviteCodeQR from "@/components/InviteCodeQR";
@@ -68,7 +69,7 @@ export default async function SettingsPage({
   const isAdmin = !!profile?.is_admin;
 
   const supabase = await createClient();
-  const tab = searchParams.tab === "codes" ? "codes" : searchParams.tab === "groups" ? "groups" : searchParams.tab === "publish" ? "publish" : searchParams.tab === "regs" ? "regs" : searchParams.tab === "reset" ? "reset" : "users";
+  const tab = searchParams.tab === "codes" ? "codes" : searchParams.tab === "groups" ? "groups" : searchParams.tab === "publish" ? "publish" : searchParams.tab === "regs" ? "regs" : searchParams.tab === "reset" ? "reset" : searchParams.tab === "shutdown" ? "shutdown" : "users";
 
   // 头像公开链接
   const avatarPath = (profile as { avatar_path?: string } | null)?.avatar_path || "";
@@ -89,6 +90,7 @@ export default async function SettingsPage({
   let pendingPublish: { id: string; name: string; owner_name: string; product_count: number; publish_requested_at: string }[] = [];
   let pendingRegs: { id: string; username: string; display_name: string; registration_note: string; created_at: string }[] = [];
   let pendingResets: { id: string; username: string; display_name: string; note: string | null; created_at: string }[] = [];
+  let isShutdown = false;
   if (isAdmin) {
     const { data: users } = await supabase
       .from("profiles")
@@ -116,6 +118,8 @@ export default async function SettingsPage({
     pendingRegs = await getPendingRegistrations();
     const { getPendingPasswordResets } = await import("@/actions/admin");
     pendingResets = await getPendingPasswordResets();
+    const { getShutdownStatus } = await import("@/actions/admin");
+    isShutdown = await getShutdownStatus();
   }
 
   return (
@@ -218,7 +222,7 @@ export default async function SettingsPage({
                 注册审核
               </Link>
             </div>
-            <div className="mt-1 grid grid-cols-3 gap-1 rounded-2xl bg-gray-100 dark:bg-gray-800 p-1">
+            <div className="mt-1 grid grid-cols-4 gap-1 rounded-2xl bg-gray-100 dark:bg-gray-800 p-1">
               <Link
                 href="/settings?tab=codes"
                 className={`rounded-xl py-2 text-center text-xs font-medium ${
@@ -243,6 +247,14 @@ export default async function SettingsPage({
               >
                 密码重置
               </Link>
+              <Link
+                href="/settings?tab=shutdown"
+                className={`rounded-xl py-2 text-center text-xs font-medium ${
+                  tab === "shutdown" ? "bg-white dark:bg-gray-900 shadow-sm" : "text-gray-500 dark:text-gray-400"
+                }`}
+              >
+                服务停运
+              </Link>
             </div>
 
             {tab === "users" ? (
@@ -260,6 +272,8 @@ export default async function SettingsPage({
               <RegistrationReview requests={pendingRegs} />
             ) : tab === "reset" ? (
               <PasswordResetReview requests={pendingResets} />
+            ) : tab === "shutdown" ? (
+              <ShutdownManager isShutdown={isShutdown} />
             ) : (
               <>
                 <div className="mt-3">

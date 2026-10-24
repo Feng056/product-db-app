@@ -493,3 +493,24 @@ export async function claimPendingExport(
   await supabase.from("pending_exports").delete().eq("id", (row as { id: string }).id);
   return { data: (row as { data: object[] }).data || [] };
 }
+
+/** 检查当前登录用户是否有待自动导出（停运或停用触发），有则预生成并返回 token */
+export async function checkAndPrepareAutoExport(): Promise<{ token?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return {};
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("export_pending")
+    .eq("id", user.id)
+    .single();
+  if (!(profile as { export_pending?: boolean } | null)?.export_pending) {
+    return {};
+  }
+
+  const token = await prepareDeactivatedExport(supabase, user.id);
+  return token ? { token } : {};
+}

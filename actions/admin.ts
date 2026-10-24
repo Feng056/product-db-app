@@ -307,3 +307,65 @@ export async function rejectPasswordReset(requestId: string): Promise<ActionResu
   revalidatePath("/settings");
   return {};
 }
+
+/* ================= 服务停运 ================= */
+
+/** 获取停运状态 */
+export async function getShutdownStatus(): Promise<boolean> {
+  const { supabase } = await requireAdmin();
+  const { data } = await supabase
+    .from("system_settings")
+    .select("value")
+    .eq("key", "shutdown_requested")
+    .single();
+  return (data as { value?: string } | null)?.value === "true";
+}
+
+/** 发起停运：标记所有有自建库的用户待导出 */
+export async function requestShutdown(): Promise<ActionResult> {
+  const { supabase } = await requireAdmin();
+
+  // 找出有自建库的用户（排除纯订阅用户）
+  const { data: libs } = await supabase
+    .from("libraries")
+    .select("user_id, id");
+  const { data: subs } = await supabase
+    .from("library_subscriptions")
+    .select("subscriber_id, copy_library_id");
+
+  const subCopyIds = new Set(
+    ((subs || []) as { subscriber_id: string; copy_library_id: string }[]).map(
+      (s) => `${s.subscriber_id}:${s.copy_library_id}`
+    )
+  );
+  const usersWithOwnLibs = new Set<string>();
+  for (const l of ((libs || []) as { user_id: string; id: string }[])) {
+    if (!subCopyIds.has(`${l.user_id}:${l.id}`)) {
+      usersWithOwnLibs.add(l.user_id);
+    }
+  }
+
+  if (usersWithOwnLibs.size > 0) {
+    await supabase
+      .from("profiles")
+      .update({ export_pending: true })
+      .in("id", Array.from(usersWithOwnLibs));
+  }
+
+  await supabase
+    .from("system_settings")
+    .upsert({ key: "shutdown_requested", value: "true" });
+
+  revalidatePath("/settings");
+  return { message: `已发起停运，${usersWithOwnLibs.size} 位有自建库的用户下次打开将自动导出` };
+}
+
+/** 取消停运 */
+export async function cancelShutdown(): Promise<ActionResult> {
+  const { supabase } = await requireAdmin();
+  await supabase
+    .from("system_settings")
+    .upsert({ key: "shutdown_requested", value: "false" });
+  revalidatePath("/settings");
+  return { message: "已取消停运" };
+}
