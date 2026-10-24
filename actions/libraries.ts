@@ -38,18 +38,20 @@ export async function ensureDefaultLibrary(): Promise<Library[]> {
   return [created as Library];
 }
 
-/** 检查库名是否与已发布的公共库重名（规范化后比对） */
+/** 检查库名是否与已发布的公共库重名（规范化后比对；排除自己的库） */
 async function checkDuplicatePublishedName(
   supabase: Awaited<ReturnType<typeof createClient>>,
   name: string,
+  currentUserId: string,
   excludeId?: string
 ): Promise<string | null> {
   const normalized = normalizeLibraryName(name);
   if (!normalized) return null;
   const { data: published } = await supabase
     .from("libraries")
-    .select("id, name")
-    .eq("publish_status", "published");
+    .select("id, name, user_id")
+    .eq("publish_status", "published")
+    .neq("user_id", currentUserId);
   for (const p of published || []) {
     if (excludeId && p.id === excludeId) continue;
     if (normalizeLibraryName(p.name) === normalized) {
@@ -81,7 +83,7 @@ export async function createLibrary(formData: FormData): Promise<ActionResult> {
   const name = String(formData.get("name") || "").trim().slice(0, 30);
   if (!name) return { error: "请填写产品库名称" };
 
-  const dup = await checkDuplicatePublishedName(supabase, name);
+  const dup = await checkDuplicatePublishedName(supabase, name, user.id);
   if (dup) return { error: `库名与已发布的公共库「${dup}」重复，换个名字吧` };
 
   const { error } = await supabase
@@ -105,7 +107,7 @@ export async function renameLibrary(formData: FormData): Promise<ActionResult> {
     return { error: "订阅的库不可改名" };
   }
 
-  const dup = await checkDuplicatePublishedName(supabase, name, id);
+  const dup = await checkDuplicatePublishedName(supabase, name, user.id, id);
   if (dup) return { error: `库名与已发布的公共库「${dup}」重复，换个名字吧` };
 
   const { error } = await supabase
