@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 
 const TABS = [
   { href: "/products", label: "产品库", icon: "📦" },
+  { href: "/warehouse", label: "仓库", icon: "🗂️" },
   { href: "/products/new", label: "管理", icon: "🛠️" },
   { href: "/settings", label: "设置", icon: "⚙️" },
 ];
