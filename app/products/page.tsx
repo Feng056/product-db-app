@@ -4,6 +4,7 @@ import { getCurrentProfile } from "@/actions/auth";
 import { ensureDefaultLibrary } from "@/actions/libraries";
 import BottomNav from "@/components/BottomNav";
 import ProductCard from "@/components/ProductCard";
+import TagFilterChips from "@/components/TagFilterChips";
 import LibraryBar from "@/components/LibraryBar";
 import SubscriptionActions from "@/components/SubscriptionActions";
 import FilterCollapse from "@/components/FilterCollapse";
@@ -279,34 +280,8 @@ export default async function ProductsPage({ searchParams }: Props) {
       };
     }),
   ];
-  // 按最后交互时间排序（选中/取消都算），最近交互的在前
-  // 选中组：最近选中的在前；未选中组：最近取消的在前，从未交互的保持原序
-  const recentIndex = (label: string) => {
-    const tag = label.startsWith("#") ? label.slice(1) : label;
-    const i = recentTags.indexOf(tag);
-    return i === -1 ? 9999 : i;
-  };
-  const activeCatChips = chips
-    .filter((c) => c.active && c.key.startsWith("cat-") && c.key !== "cat-all")
-    .sort((a, b) => selectedCategories.indexOf(b.label) - selectedCategories.indexOf(a.label));
-  const activeTagChips = chips
-    .filter((c) => c.active && c.key.startsWith("tag-"))
-    .sort((a, b) => recentIndex(a.label) - recentIndex(b.label));
-  const inactiveTagChips = chips
-    .filter((c) => !c.active && c.key.startsWith("tag-"))
-    .sort((a, b) => recentIndex(a.label) - recentIndex(b.label));
-  const allChip = chips.find((c) => c.key === "cat-all")!;
-  const inactiveCatChips = chips.filter(
-    (c) => !c.active && c.key.startsWith("cat-") && c.key !== "cat-all"
-  );
-  const sortedChips = [
-    ...(allChip.active ? [allChip] : []),
-    ...activeCatChips,
-    ...activeTagChips,
-    ...inactiveTagChips,
-    ...inactiveCatChips,
-    ...(!allChip.active ? [allChip] : []),
-  ];
+  // 服务端保持原始顺序，客户端 TagFilterChips 按 localStorage 交互历史动态排序
+  const sortedChips = chips;
   const activeFilterCount =
     selectedCategories.length + selectedTags.length;
   const headerDisplay =
@@ -367,20 +342,16 @@ export default async function ProductsPage({ searchParams }: Props) {
         {/* 统一筛选：分类（单选）+ 标签（多选），默认显示一排 */}
         {(categories.length > 0 || tags.length > 0) && (
           <FilterCollapse activeCount={activeFilterCount}>
-            {sortedChips.map((chip) => (
-              <Link
-                key={chip.key}
-                href={chip.href}
-                className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${
-                  chip.active
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
-                }`}
-              >
-                {chip.active && chip.check ? "✓ " : ""}
-                {chip.label}
-              </Link>
-            ))}
+            <TagFilterChips
+              chips={sortedChips.map((c) => ({
+                ...c,
+                tag: c.key.startsWith("tag-")
+                  ? c.label.slice(1)
+                  : c.key.startsWith("cat-") && c.key !== "cat-all"
+                    ? `cat:${c.label}`
+                    : undefined,
+              }))}
+            />
           </FilterCollapse>
         )}
 
