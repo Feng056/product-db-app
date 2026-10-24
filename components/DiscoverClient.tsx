@@ -12,6 +12,9 @@ export type PublishedLib = {
   created_at: string;
   publish_categories?: string[] | null;
   sub_count: number;
+  is_own?: boolean;
+  is_subscribed?: boolean;
+  copy_id?: string | null;
 };
 
 /** 已发布库列表 + 一键订阅 */

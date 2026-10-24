@@ -74,8 +74,15 @@ export default function SubscribePlaza({ libs }: { libs: PublishedLib[] }) {
               >
                 <div className="flex items-center gap-2">
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
-                      {lib.name}
+                    <div className="flex items-center gap-2">
+                      <div className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {lib.name}
+                      </div>
+                      {lib.is_own && (
+                        <span className="shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                          我的发布
+                        </span>
+                      )}
                     </div>
                     <div className="text-xs text-gray-400">
                       {lib.owner_name} · {lib.product_count} 个产品 · {lib.sub_count} 人订阅
@@ -105,7 +112,20 @@ export default function SubscribePlaza({ libs }: { libs: PublishedLib[] }) {
                   </div>
                 </div>
                 <div className="mt-2 flex gap-2">
-                  {mineDone ? (
+                  {lib.is_own ? (
+                    <div className="flex-1 rounded-lg bg-green-50 py-2 text-center text-xs font-medium text-green-700 dark:bg-green-900/20 dark:text-green-300">
+                      👥 已有 {lib.sub_count} 人订阅
+                    </div>
+                  ) : lib.is_subscribed ? (
+                    <button
+                      onClick={() =>
+                        lib.copy_id && router.push(`/products?lib=${lib.copy_id}`)
+                      }
+                      className="flex-1 rounded-lg bg-gray-100 py-2 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                    >
+                      已订阅
+                    </button>
+                  ) : mineDone ? (
                     <button
                       onClick={onRefresh}
                       className="flex-1 rounded-lg bg-green-600 py-2 text-xs font-medium text-white"

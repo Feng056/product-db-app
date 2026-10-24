@@ -318,9 +318,9 @@ export async function rejectPublish(libraryId: string): Promise<ActionResult> {
   return {};
 }
 
-/** 获取已发布的库（发现页用，含主人昵称和产品数） */
+/** 获取已发布的库（发现页用，含主人昵称和产品数；含自己的已发布库和已订阅的库） */
 export async function getPublishedLibraries(): Promise<
-  { id: string; name: string; owner_name: string; product_count: number; created_at: string; publish_categories?: string[] | null; sub_count: number }[]
+  { id: string; name: string; owner_name: string; product_count: number; created_at: string; publish_categories?: string[] | null; sub_count: number; is_own: boolean; is_subscribed: boolean; copy_id: string | null }[]
 > {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -329,7 +329,6 @@ export async function getPublishedLibraries(): Promise<
     .from("libraries")
     .select("id, name, user_id, created_at, publish_categories")
     .eq("publish_status", "published")
-    .neq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(50);
   if (!libs || libs.length === 0) return [];
@@ -354,12 +353,17 @@ export async function getPublishedLibraries(): Promise<
     const id = (c as { library_id: string }).library_id;
     countMap[id] = (countMap[id] || 0) + 1;
   }
-  // 已订阅的排除
+  // 我订阅过的源库 → 我的副本 id（订阅过的库仍在广场显示，标为已订阅）
   const { data: subs } = await supabase
     .from("library_subscriptions")
-    .select("library_id")
+    .select("library_id, copy_library_id")
     .eq("subscriber_id", user.id);
-  const subbed = new Set((subs || []).map((s) => s.library_id));
+  const subMap = new Map(
+    ((subs || []) as { library_id: string; copy_library_id: string }[]).map((s) => [
+      s.library_id,
+      s.copy_library_id,
+    ])
+  );
   // 各发布库的订阅人数
   const { data: allSubs } = await supabase
     .from("library_subscriptions")
@@ -371,7 +375,6 @@ export async function getPublishedLibraries(): Promise<
     subCountMap[id] = (subCountMap[id] || 0) + 1;
   }
   return libs
-    .filter((l) => !subbed.has(l.id))
     .map((l) => ({
       id: l.id,
       name: l.name,
@@ -380,6 +383,9 @@ export async function getPublishedLibraries(): Promise<
       created_at: l.created_at,
       publish_categories: (l as { publish_categories?: string[] | null }).publish_categories || null,
       sub_count: subCountMap[l.id] || 0,
+      is_own: l.user_id === user.id,
+      is_subscribed: subMap.has(l.id),
+      copy_id: subMap.get(l.id) || null,
     }));
 }
 
