@@ -2,74 +2,23 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/actions/auth";
-import { toggleInviteCode, deleteInviteCode } from "@/actions/admin";
 import BottomNav from "@/components/BottomNav";
 import LogoutButton from "@/components/LogoutButton";
 import AccountEditor from "@/components/AccountEditor";
 import PasswordChangeForm from "@/components/PasswordChangeForm";
-import CreateInviteCodeForm from "@/components/CreateInviteCodeForm";
 import ThemeSelector from "@/components/ThemeSelector";
-import GroupManager from "@/components/GroupManager";
-import PublishReview from "@/components/PublishReview";
-import RegistrationReview from "@/components/RegistrationReview";
-import ShutdownManager from "@/components/ShutdownManager";
-import PasswordResetReview from "@/components/PasswordResetReview";
-import UserManager from "@/components/UserManager";
-import InviteCodeQR from "@/components/InviteCodeQR";
-import { formatDateTime } from "@/lib/utils";
+import AdminPanel from "@/components/AdminPanel";
 import type { InviteCode, Profile, Group } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-function ToggleButton({ code }: { code: InviteCode }) {
-  return (
-    <form
-      action={async () => {
-        "use server";
-        await toggleInviteCode(code.id, code.is_active);
-      }}
-    >
-      <button
-        type="submit"
-        className={`rounded-full px-3 py-1.5 text-xs font-medium ${
-          code.is_active
-            ? "bg-green-100 text-green-700 dark:text-green-300"
-            : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
-        }`}
-      >
-        {code.is_active ? "启用中" : "已停用"}
-      </button>
-    </form>
-  );
-}
-
-function DeleteCodeButton({ id }: { id: string }) {
-  return (
-    <form
-      action={async () => {
-        "use server";
-        await deleteInviteCode(id);
-      }}
-    >
-      <button type="submit" className="text-xs text-red-500">
-        删除
-      </button>
-    </form>
-  );
-}
-
-/** 设置页：账户信息 + 退出登录；管理员另有用户管理与邀请码管理 */
-export default async function SettingsPage({
-  searchParams,
-}: {
-  searchParams: { tab?: string };
-}) {
+/** 设置页：账户信息 + 退出登录；管理员另有管理面板 */
+export default async function SettingsPage() {
   const { user, profile } = await getCurrentProfile();
   if (!user) redirect("/login");
   const isAdmin = !!profile?.is_admin;
 
   const supabase = await createClient();
-  const tab = searchParams.tab === "codes" ? "codes" : searchParams.tab === "groups" ? "groups" : searchParams.tab === "publish" ? "publish" : searchParams.tab === "regs" ? "regs" : searchParams.tab === "reset" ? "reset" : searchParams.tab === "shutdown" ? "shutdown" : "users";
 
   // 头像公开链接
   const avatarPath = (profile as { avatar_path?: string } | null)?.avatar_path || "";
@@ -191,127 +140,20 @@ export default async function SettingsPage({
           </div>
         </section>
 
-        {/* 管理（仅管理员） */}
+        {/* 管理（仅管理员）：可折叠，分组展示 */}
         {isAdmin && (
-          <section className="mt-6">
-            <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400 ">管理</h2>
-
-            <div className="grid grid-cols-3 gap-1 rounded-2xl bg-gray-100 dark:bg-gray-800 p-1">
-              <Link
-                href="/settings?tab=users"
-                className={`rounded-xl py-2 text-center text-xs font-medium ${
-                  tab === "users" ? "bg-white dark:bg-gray-900 shadow-sm" : "text-gray-500 dark:text-gray-400"
-                }`}
-              >
-                用户
-              </Link>
-              <Link
-                href="/settings?tab=groups"
-                className={`rounded-xl py-2 text-center text-xs font-medium ${
-                  tab === "groups" ? "bg-white dark:bg-gray-900 shadow-sm" : "text-gray-500 dark:text-gray-400"
-                }`}
-              >
-                分组
-              </Link>
-              <Link
-                href="/settings?tab=regs"
-                className={`rounded-xl py-2 text-center text-xs font-medium ${
-                  tab === "regs" ? "bg-white dark:bg-gray-900 shadow-sm" : "text-gray-500 dark:text-gray-400"
-                }`}
-              >
-                注册审核
-              </Link>
-            </div>
-            <div className="mt-1 grid grid-cols-4 gap-1 rounded-2xl bg-gray-100 dark:bg-gray-800 p-1">
-              <Link
-                href="/settings?tab=codes"
-                className={`rounded-xl py-2 text-center text-xs font-medium ${
-                  tab === "codes" ? "bg-white dark:bg-gray-900 shadow-sm" : "text-gray-500 dark:text-gray-400"
-                }`}
-              >
-                邀请码
-              </Link>
-              <Link
-                href="/settings?tab=publish"
-                className={`rounded-xl py-2 text-center text-xs font-medium ${
-                  tab === "publish" ? "bg-white dark:bg-gray-900 shadow-sm" : "text-gray-500 dark:text-gray-400"
-                }`}
-              >
-                发布审核
-              </Link>
-              <Link
-                href="/settings?tab=reset"
-                className={`rounded-xl py-2 text-center text-xs font-medium ${
-                  tab === "reset" ? "bg-white dark:bg-gray-900 shadow-sm" : "text-gray-500 dark:text-gray-400"
-                }`}
-              >
-                密码重置
-              </Link>
-              <Link
-                href="/settings?tab=shutdown"
-                className={`rounded-xl py-2 text-center text-xs font-medium ${
-                  tab === "shutdown" ? "bg-white dark:bg-gray-900 shadow-sm" : "text-gray-500 dark:text-gray-400"
-                }`}
-              >
-                服务停运
-              </Link>
-            </div>
-
-            {tab === "users" ? (
-              <UserManager
-                users={userList}
-                groups={groupList}
-                allTags={allTags}
-                adminId={user.id}
-              />
-            ) : tab === "groups" ? (
-              <GroupManager groups={groupList} memberCounts={memberCounts} />
-            ) : tab === "publish" ? (
-              <PublishReview requests={pendingPublish} />
-            ) : tab === "regs" ? (
-              <RegistrationReview requests={pendingRegs} />
-            ) : tab === "reset" ? (
-              <PasswordResetReview requests={pendingResets} />
-            ) : tab === "shutdown" ? (
-              <ShutdownManager isShutdown={isShutdown} />
-            ) : (
-              <>
-                <div className="mt-3">
-                  <CreateInviteCodeForm groups={groupList} />
-                </div>
-                <div className="mt-3 space-y-2">
-                  {codeList.length === 0 && (
-                    <p className="rounded-2xl bg-white dark:bg-gray-900 p-8 text-center text-sm text-gray-400 dark:text-gray-500">
-                      暂无邀请码
-                    </p>
-                  )}
-                  {codeList.map((c) => (
-                    <div key={c.id} className="rounded-2xl bg-white dark:bg-gray-900 p-4">
-                      <div className="flex items-center justify-between gap-2">
-                        <code className="truncate text-sm font-bold text-blue-700 dark:text-blue-300">
-                          {c.code}
-                        </code>
-                        <div className="flex shrink-0 items-center gap-2">
-                          <InviteCodeQR code={c.code} />
-                          <ToggleButton code={c} />
-                          <DeleteCodeButton id={c.id} />
-                        </div>
-                      </div>
-                      <div className="mt-1 text-xs text-gray-500 dark:text-gray-400 ">
-                        来源：{c.source_label} · 已用 {c.used_count}/{c.max_uses} 次
-                        {c.group_id && groupList.find(g => g.id === c.group_id)
-                          ? ` · 分组：${groupList.find(g => g.id === c.group_id)!.name}`
-                          : ""}
-                      </div>
-                      <div className="text-xs text-gray-400 dark:text-gray-500">
-                        创建于 {formatDateTime(c.created_at)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </section>
+          <AdminPanel
+            userList={userList}
+            groupList={groupList}
+            allTags={allTags}
+            adminId={user.id}
+            memberCounts={memberCounts}
+            codeList={codeList}
+            pendingPublish={pendingPublish}
+            pendingRegs={pendingRegs}
+            pendingResets={pendingResets}
+            isShutdown={isShutdown}
+          />
         )}
       </main>
       <BottomNav isAdmin={isAdmin} />
