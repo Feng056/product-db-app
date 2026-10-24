@@ -27,7 +27,18 @@ export default function SubscribePlaza({ libs }: { libs: PublishedLib[] }) {
     }
   }
 
-  if (libs.length === 0) return null;
+  if (libs.length === 0) {
+    return (
+      <div className="mb-4 overflow-hidden rounded-2xl bg-purple-50 dark:bg-purple-950">
+        <div className="px-4 py-3">
+          <span className="text-sm font-semibold text-purple-700 dark:text-purple-300">
+            🏪 订阅广场
+          </span>
+          <p className="mt-1 text-xs text-gray-400">暂无他人发布的公共库</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mb-4 overflow-hidden rounded-2xl bg-purple-50 dark:bg-purple-950">
