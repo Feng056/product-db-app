@@ -279,21 +279,19 @@ export default async function ProductsPage({ searchParams }: Props) {
       };
     }),
   ];
-  // 动态排序：按最近交互时间（选中/取消都算），最近的在前
-  const recentIndex = (label: string) => {
-    const tag = label.startsWith("#") ? label.slice(1) : label;
-    const i = recentTags.indexOf(tag);
-    return i === -1 ? 9999 : i;
-  };
+  // 选中项按选择顺序倒序（最后选的在前），未选中保持原数据库顺序
   const activeCatChips = chips
     .filter((c) => c.active && c.key.startsWith("cat-") && c.key !== "cat-all")
     .sort((a, b) => selectedCategories.indexOf(b.label) - selectedCategories.indexOf(a.label));
   const activeTagChips = chips
     .filter((c) => c.active && c.key.startsWith("tag-"))
-    .sort((a, b) => recentIndex(a.label) - recentIndex(b.label));
-  const inactiveTagChips = chips
-    .filter((c) => !c.active && c.key.startsWith("tag-"))
-    .sort((a, b) => recentIndex(a.label) - recentIndex(b.label));
+    .sort(
+      (a, b) =>
+        selectedTags.indexOf(b.label.slice(1)) - selectedTags.indexOf(a.label.slice(1))
+    );
+  const inactiveTagChips = chips.filter(
+    (c) => !c.active && c.key.startsWith("tag-")
+  );
   const allChip = chips.find((c) => c.key === "cat-all")!;
   const inactiveCatChips = chips.filter(
     (c) => !c.active && c.key.startsWith("cat-") && c.key !== "cat-all"
