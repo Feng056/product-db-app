@@ -27,7 +27,7 @@ export default function SubscriptionActions({ libraryId }: { libraryId: string }
 
   const label =
     state === "busy"
-      ? "同步中…"
+      ? "同步中"
       : state === "done"
         ? doneMsg
         : state === "error"
