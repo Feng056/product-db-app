@@ -288,12 +288,18 @@ export async function unsubscribeFromLibrary(
   const { supabase, user } = await requireUser();
   const { data: sub } = await supabase
     .from("library_subscriptions")
-    .select("id")
+    .select("id, library_id")
     .eq("copy_library_id", copyLibraryId)
     .eq("subscriber_id", user.id)
     .single();
   if (!sub) return { error: "不是订阅的库" };
   await supabase.from("library_subscriptions").delete().eq("id", sub.id);
+  // 退出共同创作：删除申请记录（待审核提交随副本库删除而级联消失）
+  await supabase
+    .from("library_co_creators")
+    .delete()
+    .eq("source_library_id", (sub as { library_id: string }).library_id)
+    .eq("user_id", user.id);
   // 删除整个副本库（级联删除产品）
   const { error } = await supabase
     .from("libraries")

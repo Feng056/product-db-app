@@ -16,8 +16,42 @@ async function requireUser() {
   return { supabase, user };
 }
 
-/** 校验产品库可写：订阅副本只读，不可新增/修改/删除产品 */
+/** 校验产品库可编辑：自建库可写；订阅副本仅已批准的共同创作者可写，且有待审核提交时锁定 */
 async function assertLibraryWritable(
+  supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
+  userId: string,
+  libraryId: string
+): Promise<string | null> {
+  const { data: sub } = await supabase
+    .from("library_subscriptions")
+    .select("library_id")
+    .eq("copy_library_id", libraryId)
+    .eq("subscriber_id", userId)
+    .limit(1);
+  if (!sub || sub.length === 0) return null; // 自建库
+  // 订阅副本：需为该源库已批准的共同创作者
+  const { data: cc } = await supabase
+    .from("library_co_creators")
+    .select("status")
+    .eq("source_library_id", sub[0].library_id)
+    .eq("user_id", userId)
+    .limit(1);
+  if (!cc || cc.length === 0 || cc[0].status !== "approved") {
+    return "订阅的库为只读，不可修改。如需最新内容请点刷新";
+  }
+  // 有待审核的提交时锁定副本，防止提交后继续改导致对比失真
+  const { data: pend } = await supabase
+    .from("co_creation_submissions")
+    .select("id")
+    .eq("copy_library_id", libraryId)
+    .eq("status", "pending")
+    .limit(1);
+  if (pend && pend.length > 0) return "修改已提交，等待发布者审核，期间不可再改";
+  return null;
+}
+
+/** 严格版：订阅副本一律不可写（导出用，防止订阅内容被导出后改头换面冒充发布者） */
+async function assertLibraryNotCopy(
   supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
   userId: string,
   libraryId: string
@@ -290,7 +324,7 @@ export async function getLibraryExportData(
     .eq("user_id", user.id)
     .single();
   if (!lib) return { error: "产品库不存在或无权限" };
-  const readonlyErr = await assertLibraryWritable(supabase, user.id, libraryId);
+  const readonlyErr = await assertLibraryNotCopy(supabase, user.id, libraryId);
   if (readonlyErr) return { error: "订阅的库不支持导出" };
 
   const { data, error } = await supabase

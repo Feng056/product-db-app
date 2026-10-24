@@ -59,6 +59,7 @@ export async function saveLibraryOrder(ids: string[]): Promise<{ ok: boolean; me
     .eq("id", user.id);
   if (error) return { ok: false, message: "保存顺序失败" };
   revalidatePath("/products");
+  revalidatePath("/warehouse");
   return { ok: true };
 }
 
@@ -333,10 +334,19 @@ export async function getPublishedLibraries(): Promise<
     .limit(50);
   if (!libs || libs.length === 0) return [];
   const ownerIds = Array.from(new Set(libs.map((l) => l.user_id)));
-  const { data: owners } = await supabase
-    .from("profiles")
-    .select("id, display_name, username")
-    .in("id", ownerIds);
+  // 发布者名字：profiles 仅本人可见，普通用户直接查会全是“未知”，
+  // 改走仅返回 id/昵称/账号的 SECURITY DEFINER 函数；函数未建好时回退到直接查（不比以前差）
+  const { data: rpcOwners, error: rpcError } = await supabase.rpc("get_publisher_names", {
+    p_ids: ownerIds,
+  });
+  let owners = rpcOwners;
+  if (rpcError || !owners) {
+    const { data: profOwners } = await supabase
+      .from("profiles")
+      .select("id, display_name, username")
+      .in("id", ownerIds);
+    owners = profOwners;
+  }
   const ownerMap = new Map(
     ((owners || []) as { id: string; display_name: string; username: string }[]).map((o) => [
       o.id,

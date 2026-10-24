@@ -51,11 +51,11 @@ export default async function ProductDetailPage({
   const product = data as Product;
   const isEdit = searchParams.edit === "1";
 
-  // 并行：订阅只读校验 + 库时间显示设置
+  // 并行：订阅关系 + 库时间显示设置
   const [subRes, libRes] = await Promise.all([
     supabase
       .from("library_subscriptions")
-      .select("id")
+      .select("id, library_id")
       .eq("copy_library_id", product.library_id)
       .eq("subscriber_id", user!.id)
       .limit(1),
@@ -64,7 +64,32 @@ export default async function ProductDetailPage({
       : Promise.resolve({ data: null }),
   ]);
   const sub = subRes.data;
-  const isReadOnly = !!sub && sub.length > 0;
+  const isSubCopy = !!sub && sub.length > 0;
+  // 共同创作者且无待审核提交 → 可编辑；否则订阅副本只读
+  let canEdit = !isSubCopy;
+  let coBadge = "";
+  if (isSubCopy) {
+    const sourceId = (sub[0] as { library_id: string }).library_id;
+    const [ccRes, pendRes] = await Promise.all([
+      supabase
+        .from("library_co_creators")
+        .select("status")
+        .eq("source_library_id", sourceId)
+        .eq("user_id", user!.id)
+        .single(),
+      supabase
+        .from("co_creation_submissions")
+        .select("id")
+        .eq("copy_library_id", product.library_id)
+        .eq("status", "pending")
+        .limit(1),
+    ]);
+    const approved = (ccRes.data as { status?: string } | null)?.status === "approved";
+    const hasPending = !!pendRes.data && pendRes.data.length > 0;
+    canEdit = approved && !hasPending;
+    coBadge = approved ? (hasPending ? "修改已提交 · 待审核" : "共同创作 · 可编辑") : "";
+  }
+  const isReadOnly = !canEdit;
 
   // 该产品所在库的时间显示设置（发布者控制）
   const timeDisplay = (libRes.data as { time_display?: string } | null)?.time_display || "both";
@@ -91,9 +116,17 @@ export default async function ProductDetailPage({
               编辑
             </Link>
           )}
-          {isReadOnly && (
-            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 dark:bg-blue-950 dark:text-blue-300">
-              订阅内容 · 只读
+          {isSubCopy && (
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                coBadge === "共同创作 · 可编辑"
+                  ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+                  : coBadge === "修改已提交 · 待审核"
+                    ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                    : "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+              }`}
+            >
+              {coBadge || "订阅内容 · 只读"}
             </span>
           )}
         </div>
@@ -101,7 +134,9 @@ export default async function ProductDetailPage({
         {isEdit ? (
           isReadOnly ? (
             <p className="rounded-2xl bg-white dark:bg-gray-900 p-8 text-center text-sm text-gray-400">
-              订阅的内容为只读，不可编辑
+              {coBadge === "修改已提交 · 待审核"
+                ? "修改已提交，等待发布者审核，期间不可编辑"
+                : "订阅的内容为只读，不可编辑"}
             </p>
           ) : (
           <>

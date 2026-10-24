@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getCurrentProfile } from "@/actions/auth";
 import { ensureDefaultLibrary, getPublishedLibraries } from "@/actions/libraries";
+import { getCoCreatePendingCounts } from "@/actions/co-create";
 import { createClient } from "@/lib/supabase/server";
 import BottomNav from "@/components/BottomNav";
 import CreateLibraryForm from "@/components/CreateLibraryForm";
@@ -14,8 +15,8 @@ export default async function WarehousePage() {
 
   const supabase = await createClient();
 
-  // 并行：各库产品数 / 各库订阅者数 / 我订阅的副本 / 订阅广场
-  const [countsRes, subsRes, mySubsRes, publishedLibs] = await Promise.all([
+  // 并行：各库产品数 / 各库订阅者数 / 我订阅的副本 / 订阅广场 / 共同创作待审核数
+  const [countsRes, subsRes, mySubsRes, publishedLibs, coCreateCounts] = await Promise.all([
     supabase
       .from("products")
       .select("library_id")
@@ -30,6 +31,7 @@ export default async function WarehousePage() {
       .select("copy_library_id")
       .eq("subscriber_id", user!.id),
     getPublishedLibraries(),
+    getCoCreatePendingCounts(),
   ]);
   const counts: Record<string, number> = {};
   for (const p of countsRes.data || []) {
@@ -73,6 +75,7 @@ export default async function WarehousePage() {
             counts={counts}
             subCounts={subCounts}
             subCopyIds={subCopyIds}
+            coCreateCounts={coCreateCounts}
           />
         </section>
       </main>

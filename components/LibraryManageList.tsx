@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { renameLibrary, deleteLibrary, requestPublish, unpublishLibrary, setLibraryTimeDisplay } from "@/actions/libraries";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { renameLibrary, deleteLibrary, requestPublish, unpublishLibrary, setLibraryTimeDisplay, saveLibraryOrder } from "@/actions/libraries";
 import { pushSubscriptionUpdate, unsubscribeFromLibrary } from "@/actions/shares";
 import PublishDialog from "./PublishDialog";
+import CoCreateReviewModal from "./CoCreateReviewModal";
 import type { Library } from "@/lib/types";
 
 /** 仓库管理：改名 / 删除 / 推送订阅更新 */
@@ -12,11 +14,13 @@ export default function LibraryManageList({
   counts,
   subCounts = {},
   subCopyIds = new Set<string>(),
+  coCreateCounts = {},
 }: {
   libraries: Library[];
   counts: Record<string, number>;
   subCounts?: Record<string, number>;
   subCopyIds?: Set<string>;
+  coCreateCounts?: Record<string, { applications: number; submissions: number }>;
 }) {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -25,6 +29,7 @@ export default function LibraryManageList({
   const [pushMsg, setPushMsg] = useState("");
   const [publishLib, setPublishLib] = useState<{ id: string; name: string; isUpdate: boolean } | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [coCreateLib, setCoCreateLib] = useState<{ id: string; name: string } | null>(null);
 
   async function onRename(formData: FormData) {
     setError(null);
@@ -103,6 +108,8 @@ export default function LibraryManageList({
 
   function renderRow(lib: Library) {
     const isSubCopy = subCopyIds.has(lib.id);
+    const pc = coCreateCounts[lib.id];
+    const pendingCo = (pc?.applications || 0) + (pc?.submissions || 0);
     return (
       <div
         key={lib.id}
@@ -147,6 +154,9 @@ export default function LibraryManageList({
                     <span className="ml-1 text-blue-600 dark:text-blue-400">
                       · {subCounts[lib.id] || 0} 人订阅
                     </span>
+                  )}
+                  {!isSubCopy && pendingCo > 0 && (
+                    <span className="ml-1 text-red-500">· {pendingCo} 条共同创作待审核</span>
                   )}
                 </div>
               </div>
@@ -221,6 +231,14 @@ export default function LibraryManageList({
                       {lib.publish_status === "pending" ? "撤回申请" : "下架"}
                     </button>
                   )}
+                  {(lib.publish_status === "published" || pendingCo > 0) && (
+                    <button
+                      onClick={() => setCoCreateLib({ id: lib.id, name: lib.name })}
+                      className="rounded-xl bg-purple-50 px-5 py-2.5 text-sm text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
+                    >
+                      共同创作{pendingCo > 0 ? `（${pendingCo} 待审核）` : ""}
+                    </button>
+                  )}
                   <button
                     onClick={() => setRenamingId(lib.id)}
                     className="rounded-xl bg-gray-100 px-5 py-2.5 text-sm text-gray-600 dark:bg-gray-700 dark:text-gray-300"
@@ -244,6 +262,10 @@ export default function LibraryManageList({
 
   return (
     <div>
+      {/* 首页显示顺序：排第一位的库为首页默认展示，点按钮调整（浏览器长按拖拽不好用，改用按钮） */}
+      {libraries.length > 1 && (
+        <OrderSection libraries={libraries} subCopyIds={subCopyIds} />
+      )}
       {/* 自建库 */}
       <div className="mb-2 text-xs font-medium text-gray-400">自建库（{ownLibs.length}）</div>
       <div className="space-y-2">
@@ -275,6 +297,119 @@ export default function LibraryManageList({
           }}
         />
       )}
+
+      {coCreateLib && (
+        <CoCreateReviewModal
+          sourceId={coCreateLib.id}
+          sourceName={coCreateLib.name}
+          onClose={() => setCoCreateLib(null)}
+          onDone={(msg) => {
+            setPushMsg(msg);
+            setTimeout(() => setPushMsg(""), 3000);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/** 首页显示顺序：全部库（自建+订阅）按展示顺序列出，上下/置顶按钮调整，排第一位即首页默认 */
+function OrderSection({
+  libraries,
+  subCopyIds,
+}: {
+  libraries: Library[];
+  subCopyIds: Set<string>;
+}) {
+  const router = useRouter();
+  const [order, setOrder] = useState<string[]>(libraries.map((l) => l.id));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const idsKey = libraries.map((l) => l.id).join(",");
+  useEffect(() => {
+    setOrder(libraries.map((l) => l.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idsKey]);
+
+  const byId = new Map(libraries.map((l) => [l.id, l]));
+  const ordered: Library[] = [];
+  for (const id of order) {
+    const lib = byId.get(id);
+    if (lib) ordered.push(lib);
+  }
+  for (const l of libraries) {
+    if (!order.includes(l.id)) ordered.push(l);
+  }
+
+  async function apply(next: string[]) {
+    setOrder(next);
+    setBusy(true);
+    setError("");
+    const res = await saveLibraryOrder(next);
+    setBusy(false);
+    if (!res.ok) {
+      setError(res.message || "保存失败");
+      setOrder(libraries.map((l) => l.id));
+    } else {
+      router.refresh();
+    }
+  }
+
+  function move(id: string, dir: number) {
+    const idx = ordered.findIndex((l) => l.id === id);
+    const nextIdx = idx + dir;
+    if (idx < 0 || nextIdx < 0 || nextIdx >= ordered.length) return;
+    const next = ordered.map((l) => l.id);
+    const tmp = next[idx];
+    next[idx] = next[nextIdx];
+    next[nextIdx] = tmp;
+    void apply(next);
+  }
+
+  function toTop(id: string) {
+    void apply([id, ...ordered.filter((l) => l.id !== id).map((l) => l.id)]);
+  }
+
+  const btn =
+    "shrink-0 rounded-lg bg-gray-100 px-2.5 py-1.5 text-xs text-gray-600 disabled:opacity-40 dark:bg-gray-800 dark:text-gray-300";
+  return (
+    <div className="mb-4 rounded-2xl bg-white p-3 dark:bg-gray-900">
+      <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">首页显示顺序</div>
+      <p className="mt-0.5 text-xs text-gray-400">排第一位的库为首页默认展示，点按钮调整顺序</p>
+      <div className="mt-2 space-y-1.5">
+        {ordered.map((lib, i) => (
+          <div
+            key={lib.id}
+            className="flex items-center gap-2 rounded-xl bg-gray-50 px-3 py-2 dark:bg-gray-800/60"
+          >
+            <span className="w-4 shrink-0 text-xs text-gray-400">{i + 1}</span>
+            <span className="min-w-0 flex-1 truncate text-sm text-gray-900 dark:text-gray-100">
+              {lib.name}
+              {subCopyIds.has(lib.id) && <span className="ml-1 opacity-70">📡</span>}
+            </span>
+            {i === 0 && (
+              <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[11px] text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                默认展示
+              </span>
+            )}
+            <button disabled={busy || i === 0} onClick={() => move(lib.id, -1)} className={btn}>
+              ↑
+            </button>
+            <button
+              disabled={busy || i === ordered.length - 1}
+              onClick={() => move(lib.id, 1)}
+              className={btn}
+            >
+              ↓
+            </button>
+            <button disabled={busy || i === 0} onClick={() => toTop(lib.id)} className={btn}>
+              置顶
+            </button>
+          </div>
+        ))}
+      </div>
+      {error && <p className="mt-2 text-center text-xs text-red-500">{error}</p>}
     </div>
   );
 }

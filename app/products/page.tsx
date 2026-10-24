@@ -6,6 +6,8 @@ import BottomNav from "@/components/BottomNav";
 import ProductCard from "@/components/ProductCard";
 import LibraryBar from "@/components/LibraryBar";
 import SubscriptionActions from "@/components/SubscriptionActions";
+import CoCreateMenu from "@/components/CoCreateMenu";
+import { getCopyCoCreateState } from "@/actions/co-create";
 import FilterCollapse from "@/components/FilterCollapse";
 import ProductGridCard from "@/components/ProductGridCard";
 import SortSelect from "@/components/SortSelect";
@@ -47,6 +49,9 @@ export default async function ProductsPage({ searchParams }: Props) {
   const allSubs = allSubsRes.data;
   const isSubCopy = !!subInfo;
   const subCopyIds = new Set((allSubs || []).map((s) => s.copy_library_id));
+  const coCreateState = isSubCopy
+    ? await getCopyCoCreateState(currentId)
+    : { isSub: false, status: "none" as const, hasPendingSubmission: false };
   const updatedCopyIds = new Set(
     ((allSubs || []) as { copy_library_id: string; has_update: boolean }[])
       .filter((s) => s.has_update)
@@ -334,12 +339,19 @@ export default async function ProductsPage({ searchParams }: Props) {
           <h1 className="max-w-[60%] truncate text-xl font-bold">
             {libraries.find((l) => l.id === currentId)?.name || "产品库"}
             {isSubCopy && (
-              <SubscriptionActions
-                libraryId={currentId}
-                libraryName={
-                  libraries.find((l) => l.id === currentId)?.name || "产品库"
-                }
-              />
+              <>
+                <SubscriptionActions libraryId={currentId} />
+                <CoCreateMenu
+                  libraryId={currentId}
+                  libraryName={
+                    libraries.find((l) => l.id === currentId)?.name || "产品库"
+                  }
+                  initial={{
+                    status: coCreateState.status,
+                    hasPendingSubmission: coCreateState.hasPendingSubmission,
+                  }}
+                />
+              </>
             )}
           </h1>
           {headerDisplay === "avatar" &&

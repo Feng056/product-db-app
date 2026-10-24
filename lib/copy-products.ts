@@ -19,7 +19,7 @@ export async function copyProductsToLibrary(
   // categories 非空时只复制这些分类的产品
   let query = supabase
     .from("products")
-    .select("name, model, category, price, specs, notes, images")
+    .select("id, name, model, category, price, specs, notes, images")
     .eq("library_id", sourceLibraryId);
   if (categories && categories.length > 0) {
     query = query.in("category", categories);
@@ -51,6 +51,7 @@ export async function copyProductsToLibrary(
     const { error: insErr } = await supabase.from("products").insert({
       user_id: targetUserId,
       library_id: targetLibraryId,
+      source_product_id: (p as { id?: string }).id || null,
       name: String(p.name || "未命名产品"),
       model: String(p.model || ""),
       category: String(p.category || "") || "未分类",
