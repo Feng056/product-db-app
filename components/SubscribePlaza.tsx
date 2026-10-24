@@ -2,26 +2,38 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { subscribeToPublished } from "@/actions/shares";
 import type { PublishedLib } from "@/components/DiscoverClient";
+import SubscribeProgressModal from "@/components/SubscribeProgressModal";
+import { runSubscribeStream } from "@/lib/subscribe-stream";
 
 /** 订阅广场：他人发布的库仅可订阅（只读同步，不提供独立副本，防止改后冒充发布者） */
 export default function SubscribePlaza({ libs }: { libs: PublishedLib[] }) {
   const [open, setOpen] = useState(true);
-  const [busy, setBusy] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [progress, setProgress] = useState({
+    open: false,
+    libName: "",
+    copied: 0,
+    total: 0,
+    error: "",
+  });
   const router = useRouter();
 
-  async function onSubscribe(id: string) {
-    setBusy(`subscribe:${id}`);
+  async function onSubscribe(lib: PublishedLib) {
+    setBusyId(lib.id);
     setError("");
-    const res = await subscribeToPublished(id);
-    setBusy(null);
-    if (res.error) {
-      setError(res.error);
-    } else if (res.libraryId) {
-      router.push(`/products?lib=${res.libraryId}`);
-    }
+    setProgress({ open: true, libName: lib.name, copied: 0, total: 0, error: "" });
+    await runSubscribeStream({ sourceLibraryId: lib.id }, (e) => {
+      if (e.type === "progress") {
+        setProgress((p) => ({ ...p, copied: e.copied, total: e.total }));
+      } else if (e.type === "done" || e.type === "skipped") {
+        router.push(`/products?lib=${e.libraryId}`);
+      } else if (e.type === "error") {
+        setBusyId(null);
+        setProgress((p) => ({ ...p, error: e.message }));
+      }
+    });
   }
 
   if (libs.length === 0) {
@@ -89,11 +101,11 @@ export default function SubscribePlaza({ libs }: { libs: PublishedLib[] }) {
               </div>
               <div className="mt-2 flex gap-2">
                 <button
-                  onClick={() => onSubscribe(lib.id)}
-                  disabled={!!busy}
+                  onClick={() => onSubscribe(lib)}
+                  disabled={busyId !== null}
                   className="flex-1 rounded-lg bg-purple-600 py-2 text-xs font-medium text-white disabled:opacity-50"
                 >
-                  {busy === `subscribe:${lib.id}` ? "订阅中…" : "📡 订阅（只读同步）"}
+                  {busyId === lib.id ? "订阅中…" : "📡 订阅（只读同步）"}
                 </button>
               </div>
             </div>
@@ -101,6 +113,17 @@ export default function SubscribePlaza({ libs }: { libs: PublishedLib[] }) {
           {error && <p className="text-center text-xs text-red-500">{error}</p>}
         </div>
       )}
+      <SubscribeProgressModal
+        open={progress.open}
+        libraryName={progress.libName}
+        copied={progress.copied}
+        total={progress.total}
+        error={progress.error}
+        onClose={() => {
+          setProgress((p) => ({ ...p, open: false, error: "" }));
+          setBusyId(null);
+        }}
+      />
     </div>
   );
 }
