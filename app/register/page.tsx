@@ -35,7 +35,7 @@ export default function RegisterPage({
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">账号</label>
-          <input name="account" required minLength={3} maxLength={20} placeholder="3-20 位字母/数字，如 feng123" className={inputCls} />
+          <input name="account" required minLength={3} maxLength={20} placeholder="abc/123/abc123" className={inputCls} />
           <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">仅用于登录，不会展示给别人</p>
         </div>
         <div>

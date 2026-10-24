@@ -36,7 +36,7 @@ export default function LoginPage({
         )}
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">账号</label>
-          <input name="account" required placeholder="字母/数字组合，如 feng123" className={inputCls} />
+          <input name="account" required placeholder="abc/123/abc123" className={inputCls} />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">密码</label>
