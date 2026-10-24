@@ -109,6 +109,9 @@ export default async function ProductsPage({ searchParams }: Props) {
     selectedTags.length > 0
       ? `tags=${encodeURIComponent(selectedTags.join(","))}`
       : "",
+    recentTags.length > 0
+      ? `recent=${encodeURIComponent(recentTags.join(","))}`
+      : "",
     view === "grid" ? "view=grid" : "",
     sort !== "newest" ? `sort=${sort}` : "",
     query ? `q=${encodeURIComponent(query)}` : "",
@@ -179,6 +182,9 @@ export default async function ProductsPage({ searchParams }: Props) {
       selectedTags.length > 0
         ? `tags=${encodeURIComponent(selectedTags.join(","))}`
         : "",
+      recentTags.length > 0
+        ? `recent=${encodeURIComponent(recentTags.join(","))}`
+        : "",
       sort !== "newest" ? `sort=${sort}` : "",
       query ? `q=${encodeURIComponent(query)}` : "",
     searchMode === "all" ? "mode=all" : "",
@@ -197,6 +203,9 @@ export default async function ProductsPage({ searchParams }: Props) {
     selectedTags.length > 0
       ? `tags=${encodeURIComponent(selectedTags.join(","))}`
       : "",
+    recentTags.length > 0
+      ? `recent=${encodeURIComponent(recentTags.join(","))}`
+      : "",
     view === "grid" ? "view=grid" : "",
     sort !== "newest" ? `sort=${sort}` : "",
   ]
@@ -210,6 +219,9 @@ export default async function ProductsPage({ searchParams }: Props) {
       : "",
     selectedTags.length > 0
       ? `tags=${encodeURIComponent(selectedTags.join(","))}`
+      : "",
+    recentTags.length > 0
+      ? `recent=${encodeURIComponent(recentTags.join(","))}`
       : "",
     view === "grid" ? "view=grid" : "",
     query ? `q=${encodeURIComponent(query)}` : "",
