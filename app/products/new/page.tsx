@@ -53,6 +53,13 @@ export default async function NewProductPage({
     subCounts[id] = (subCounts[id] || 0) + 1;
   }
 
+  // 我订阅的副本库 id（不可改名/发布）
+  const { data: mySubs } = await supabase
+    .from("library_subscriptions")
+    .select("copy_library_id")
+    .eq("subscriber_id", user!.id);
+  const subCopyIds = new Set((mySubs || []).map((s) => s.copy_library_id));
+
   return (
     <>
       <main className="page-container">
@@ -126,7 +133,7 @@ export default async function NewProductPage({
               <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400">
                 管理仓库
               </h2>
-              <LibraryManageList libraries={libraries} counts={counts} subCounts={subCounts} />
+              <LibraryManageList libraries={libraries} counts={counts} subCounts={subCounts} subCopyIds={subCopyIds} />
             </section>
           </div>
         )}

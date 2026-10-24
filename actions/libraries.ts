@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { normalizeLibraryName } from "@/lib/utils";
 import type { Library } from "@/lib/types";
 
 type ActionResult = { error?: string; message?: string };
@@ -37,12 +38,51 @@ export async function ensureDefaultLibrary(): Promise<Library[]> {
   return [created as Library];
 }
 
-/** 新建产品库 */
+/** 检查库名是否与已发布的公共库重名（规范化后比对） */
+async function checkDuplicatePublishedName(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  name: string,
+  excludeId?: string
+): Promise<string | null> {
+  const normalized = normalizeLibraryName(name);
+  if (!normalized) return null;
+  const { data: published } = await supabase
+    .from("libraries")
+    .select("id, name")
+    .eq("publish_status", "published");
+  for (const p of published || []) {
+    if (excludeId && p.id === excludeId) continue;
+    if (normalizeLibraryName(p.name) === normalized) {
+      return p.name;
+    }
+  }
+  return null;
+}
+
+/** 检查是否为订阅副本 */
+async function isSubscriptionCopy(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  libraryId: string
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("library_subscriptions")
+    .select("id")
+    .eq("copy_library_id", libraryId)
+    .eq("subscriber_id", userId)
+    .limit(1);
+  return !!data && data.length > 0;
+}
+
+/** 新建产品库（校验归属 + 重名检测） */
 export async function createLibrary(formData: FormData): Promise<ActionResult> {
   const { supabase, user } = await requireUser();
 
   const name = String(formData.get("name") || "").trim().slice(0, 30);
   if (!name) return { error: "请填写产品库名称" };
+
+  const dup = await checkDuplicatePublishedName(supabase, name);
+  if (dup) return { error: `库名与已发布的公共库「${dup}」重复，换个名字吧` };
 
   const { error } = await supabase
     .from("libraries")
@@ -53,13 +93,20 @@ export async function createLibrary(formData: FormData): Promise<ActionResult> {
   return {};
 }
 
-/** 重命名产品库（校验归属） */
+/** 重命名产品库（校验归属 + 订阅副本不可改名 + 重名检测） */
 export async function renameLibrary(formData: FormData): Promise<ActionResult> {
   const { supabase, user } = await requireUser();
 
   const id = String(formData.get("id") || "");
   const name = String(formData.get("name") || "").trim().slice(0, 30);
   if (!id || !name) return { error: "参数缺失" };
+
+  if (await isSubscriptionCopy(supabase, user.id, id)) {
+    return { error: "订阅的库不可改名" };
+  }
+
+  const dup = await checkDuplicatePublishedName(supabase, name, id);
+  if (dup) return { error: `库名与已发布的公共库「${dup}」重复，换个名字吧` };
 
   const { error } = await supabase
     .from("libraries")
@@ -120,7 +167,7 @@ export async function deleteLibrary(formData: FormData): Promise<ActionResult> {
 
 /* ================= 发布审核 ================= */
 
-/** 申请发布自己的库（进入待审核） */
+/** 申请发布自己的库（进入待审核）；已发布的库可申请更新重新审核 */
 export async function requestPublish(libraryId: string): Promise<ActionResult> {
   const { supabase, user } = await requireUser();
   const { data: lib } = await supabase
@@ -130,7 +177,6 @@ export async function requestPublish(libraryId: string): Promise<ActionResult> {
     .eq("user_id", user.id)
     .single();
   if (!lib) return { error: "无权限" };
-  if (lib.publish_status === "published") return { error: "已发布" };
   if (lib.publish_status === "pending") return { error: "已在审核中" };
   const { error } = await supabase
     .from("libraries")
@@ -138,7 +184,7 @@ export async function requestPublish(libraryId: string): Promise<ActionResult> {
     .eq("id", libraryId);
   if (error) return { error: error.message };
   revalidatePath("/products/new");
-  return { message: "已提交审核，等待管理员通过" };
+  return { message: lib.publish_status === "published" ? "已提交更新审核，通过后自动推送给订阅者" : "已提交审核，等待管理员通过" };
 }
 
 /** 取消发布申请 / 下架已发布的库 */
@@ -154,7 +200,7 @@ export async function unpublishLibrary(libraryId: string): Promise<ActionResult>
   return {};
 }
 
-/** 管理员：通过发布申请 */
+/** 管理员：通过发布申请（通过后自动推送给所有订阅者） */
 export async function approvePublish(libraryId: string): Promise<ActionResult> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -170,8 +216,11 @@ export async function approvePublish(libraryId: string): Promise<ActionResult> {
     .update({ publish_status: "published" })
     .eq("id", libraryId);
   if (error) return { error: error.message };
+  // 自动推送给所有订阅者
+  const { pushToAllSubscribers } = await import("@/actions/shares");
+  const pushed = await pushToAllSubscribers(supabase, libraryId);
   revalidatePath("/settings");
-  return {};
+  return { message: pushed > 0 ? `已通过，并推送给 ${pushed} 个订阅者` : "已通过发布" };
 }
 
 /** 管理员：驳回发布申请 */

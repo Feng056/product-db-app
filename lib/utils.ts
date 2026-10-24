@@ -22,3 +22,13 @@ export function generateInviteCode(prefix = "CODE"): string {
     s += chars[Math.floor(Math.random() * chars.length)];
   return `${prefix}-${s}`;
 }
+
+/** 规范化库名：小写 + 去掉空白、标点、符号，用于重名比对（防加空格标点绕过） */
+export function normalizeLibraryName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(
+      /[\s~`!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?！￥……（）——【】；：‘’“”，。、？·×÷§©®™★☆♠♥♦♣●○◆◇■□▲△▼▽◀▶◁▷⟨⟩《》〈〉「」『』【】〖〗〔〕［］｛｝（）～！@#￥%…&*—+=|、]/g,
+      ""
+    );
+}

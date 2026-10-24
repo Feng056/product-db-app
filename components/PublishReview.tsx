@@ -16,17 +16,20 @@ export type PublishRequest = {
 export default function PublishReview({ requests }: { requests: PublishRequest[] }) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [msg, setMsg] = useState("");
   const router = useRouter();
 
   async function onDecide(id: string, approve: boolean) {
-    if (!confirm(approve ? "通过该发布申请？" : "驳回该发布申请？")) return;
+    if (!confirm(approve ? "通过该发布申请？通过后自动推送给所有订阅者。" : "驳回该发布申请？")) return;
     setBusyId(id);
     setError("");
+    setMsg("");
     const res = approve ? await approvePublish(id) : await rejectPublish(id);
     setBusyId(null);
     if (res.error) {
       setError(res.error);
     } else {
+      if (res.message) setMsg(res.message);
       router.refresh();
     }
   }
@@ -73,6 +76,7 @@ export default function PublishReview({ requests }: { requests: PublishRequest[]
         </div>
       ))}
       {error && <p className="text-center text-xs text-red-500">{error}</p>}
+      {msg && <p className="text-center text-xs text-green-600">{msg}</p>}
     </div>
   );
 }

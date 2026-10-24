@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { renameLibrary, deleteLibrary, requestPublish, unpublishLibrary } from "@/actions/libraries";
-import { pushSubscriptionUpdate } from "@/actions/shares";
+import { pushSubscriptionUpdate, unsubscribeFromLibrary } from "@/actions/shares";
 import type { Library } from "@/lib/types";
 
 /** 仓库管理：改名 / 删除 / 推送订阅更新 */
@@ -10,14 +10,17 @@ export default function LibraryManageList({
   libraries,
   counts,
   subCounts = {},
+  subCopyIds = new Set<string>(),
 }: {
   libraries: Library[];
   counts: Record<string, number>;
   subCounts?: Record<string, number>;
+  subCopyIds?: Set<string>;
 }) {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pushingId, setPushingId] = useState<string | null>(null);
+  const [unsubscribingId, setUnsubscribingId] = useState<string | null>(null);
   const [pushMsg, setPushMsg] = useState("");
 
   async function onRename(formData: FormData) {
@@ -67,6 +70,15 @@ export default function LibraryManageList({
     if (!window.confirm(isPublished ? `将「${name}」下架？订阅者不受影响。` : `取消「${name}」的发布申请？`)) return;
     setError(null);
     const res = await unpublishLibrary(id);
+    if (res.error) setError(res.error);
+  }
+
+  async function onUnsubscribe(id: string, name: string) {
+    if (!window.confirm(`取消订阅「${name}」？整个库将被删除。`)) return;
+    setUnsubscribingId(id);
+    setError(null);
+    const res = await unsubscribeFromLibrary(id);
+    setUnsubscribingId(null);
     if (res.error) setError(res.error);
   }
 
@@ -136,34 +148,55 @@ export default function LibraryManageList({
                     {pushingId === lib.id ? "推送中…" : "📡 推送更新"}
                   </button>
                 )}
-                {(!lib.publish_status || lib.publish_status === "private" || lib.publish_status === "rejected") && (
+                {subCopyIds.has(lib.id) ? (
+                  /* 订阅副本：不可改名/发布，只能取消订阅（整库删除） */
                   <button
-                    onClick={() => onRequestPublish(lib.id, lib.name)}
-                    className="shrink-0 rounded-lg bg-green-50 px-2.5 py-1.5 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                    onClick={() => onUnsubscribe(lib.id, lib.name)}
+                    disabled={unsubscribingId === lib.id}
+                    className="shrink-0 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400 disabled:opacity-50"
                   >
-                    发布
+                    {unsubscribingId === lib.id ? "取消中…" : "取消订阅"}
                   </button>
+                ) : (
+                  <>
+                    {(!lib.publish_status || lib.publish_status === "private" || lib.publish_status === "rejected") && (
+                      <button
+                        onClick={() => onRequestPublish(lib.id, lib.name)}
+                        className="shrink-0 rounded-lg bg-green-50 px-2.5 py-1.5 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                      >
+                        发布
+                      </button>
+                    )}
+                    {lib.publish_status === "published" && (
+                      <button
+                        onClick={() => onRequestPublish(lib.id, lib.name)}
+                        className="shrink-0 rounded-lg bg-green-50 px-2.5 py-1.5 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                      >
+                        申请更新
+                      </button>
+                    )}
+                    {(lib.publish_status === "pending" || lib.publish_status === "published") && (
+                      <button
+                        onClick={() => onUnpublish(lib.id, lib.name, lib.publish_status === "published")}
+                        className="shrink-0 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                      >
+                        {lib.publish_status === "pending" ? "撤回" : "下架"}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setRenamingId(lib.id)}
+                      className="shrink-0 rounded-lg bg-gray-100 px-2.5 py-1.5 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                    >
+                      改名
+                    </button>
+                    <button
+                      onClick={() => onDelete(lib.id, lib.name)}
+                      className="shrink-0 rounded-lg bg-red-50 px-2.5 py-1.5 text-xs text-red-600 dark:bg-red-900/30 dark:text-red-400"
+                    >
+                      删除
+                    </button>
+                  </>
                 )}
-                {(lib.publish_status === "pending" || lib.publish_status === "published") && (
-                  <button
-                    onClick={() => onUnpublish(lib.id, lib.name, lib.publish_status === "published")}
-                    className="shrink-0 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                  >
-                    {lib.publish_status === "pending" ? "撤回" : "下架"}
-                  </button>
-                )}
-                <button
-                  onClick={() => setRenamingId(lib.id)}
-                  className="shrink-0 rounded-lg bg-gray-100 px-2.5 py-1.5 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-400"
-                >
-                  改名
-                </button>
-                <button
-                  onClick={() => onDelete(lib.id, lib.name)}
-                  className="shrink-0 rounded-lg bg-red-50 px-2.5 py-1.5 text-xs text-red-600 dark:bg-red-900/30 dark:text-red-400"
-                >
-                  删除
-                </button>
               </div>
             )}
           </div>

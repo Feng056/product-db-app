@@ -319,6 +319,24 @@ export async function subscribeToLibraries(
 }
 
 /** 同步单个副本：清空后从源库重拷 */
+/** 内部：推送源库到所有订阅者副本（不校验调用者身份，供管理员审核通过后调用） */
+export async function pushToAllSubscribers(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  sourceLibraryId: string
+): Promise<number> {
+  const { data: subs } = await supabase
+    .from("library_subscriptions")
+    .select("copy_library_id, subscriber_id")
+    .eq("library_id", sourceLibraryId);
+  let updated = 0;
+  for (const s of subs || []) {
+    if (!s.copy_library_id) continue;
+    await syncCopy(supabase, sourceLibraryId, s.copy_library_id, s.subscriber_id);
+    updated++;
+  }
+  return updated;
+}
+
 async function syncCopy(
   supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
   sourceId: string,
@@ -343,16 +361,7 @@ export async function pushSubscriptionUpdate(
     .single();
   if (!lib) return { updated: 0, error: "无权限" };
 
-  const { data: subs } = await supabase
-    .from("library_subscriptions")
-    .select("copy_library_id, subscriber_id")
-    .eq("library_id", sourceLibraryId);
-  let updated = 0;
-  for (const s of subs || []) {
-    if (!s.copy_library_id) continue;
-    await syncCopy(supabase, sourceLibraryId, s.copy_library_id, s.subscriber_id);
-    updated++;
-  }
+  const updated = await pushToAllSubscribers(supabase, sourceLibraryId);
   revalidatePath("/products");
   return { updated };
 }
