@@ -60,6 +60,19 @@ export default async function ProductDetailPage({
     .limit(1);
   const isReadOnly = !!sub && sub.length > 0;
 
+  // 该产品所在库的时间显示设置（发布者控制）
+  let timeDisplay = "both";
+  if (product.library_id) {
+    const { data: libRow } = await supabase
+      .from("libraries")
+      .select("time_display")
+      .eq("id", product.library_id)
+      .single();
+    if (libRow?.time_display) timeDisplay = libRow.time_display;
+  }
+  const showCreated = timeDisplay !== "updated";
+  const showUpdated = timeDisplay !== "created";
+
   const imageUrls: Record<string, string> = {};
   for (const p of product.images || []) {
     imageUrls[p] = supabase.storage.from("product-images").getPublicUrl(p).data.publicUrl;
@@ -164,9 +177,15 @@ export default async function ProductDetailPage({
             )}
 
             <p className="text-xs text-gray-400 dark:text-gray-500">
-              创建于 {formatDateTime(product.created_at)} · 更新于{" "}
-              {formatDateTime(product.updated_at)}
+              （此参数仅供参考，不做销售依据，具体以实际产品为准）
             </p>
+            {(showCreated || showUpdated) && (
+              <p className="text-xs text-gray-400 dark:text-gray-500">
+                {showCreated && <>创建于 {formatDateTime(product.created_at)}</>}
+                {showCreated && showUpdated && " · "}
+                {showUpdated && <>更新于 {formatDateTime(product.updated_at)}</>}
+              </p>
+            )}
           </div>
         )}
       </main>

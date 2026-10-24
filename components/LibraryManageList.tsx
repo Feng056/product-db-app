@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { renameLibrary, deleteLibrary, requestPublish, unpublishLibrary } from "@/actions/libraries";
+import { renameLibrary, deleteLibrary, requestPublish, unpublishLibrary, setLibraryTimeDisplay } from "@/actions/libraries";
 import { pushSubscriptionUpdate, unsubscribeFromLibrary } from "@/actions/shares";
 import type { Library } from "@/lib/types";
 
@@ -82,6 +82,12 @@ export default function LibraryManageList({
     if (res.error) setError(res.error);
   }
 
+  async function onTimeDisplay(id: string, mode: string) {
+    setError(null);
+    const res = await setLibraryTimeDisplay(id, mode);
+    if (res?.error) setError(res.error);
+  }
+
   function publishBadge(status?: string) {
     if (status === "published")
       return <span className="ml-1 rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400">已发布</span>;
@@ -95,7 +101,14 @@ export default function LibraryManageList({
   const ownLibs = libraries.filter((l) => !subCopyIds.has(l.id));
   const subLibs = libraries.filter((l) => subCopyIds.has(l.id));
 
+  const timeDisplayLabel: Record<string, string> = {
+    both: "同时显示",
+    created: "仅创建时间",
+    updated: "仅更新时间",
+  };
+
   function renderRow(lib: Library) {
+    const isSubCopy = subCopyIds.has(lib.id);
     return (
       <div
         key={lib.id}
@@ -139,6 +152,21 @@ export default function LibraryManageList({
                   <span className="ml-1 text-blue-600">· {subCounts[lib.id]} 个订阅</span>
                 )}
               </div>
+              {/* 自建库：时间显示设置（控制产品详情页创建时间/更新时间的展示） */}
+              {!isSubCopy && (
+                <div className="mt-1 flex items-center gap-1.5">
+                  <span className="text-xs text-gray-400">时间显示</span>
+                  <select
+                    value={lib.time_display || "both"}
+                    onChange={(e) => onTimeDisplay(lib.id, e.target.value)}
+                    className="rounded-lg border border-gray-200 bg-gray-50 px-1.5 py-1 text-xs text-gray-600 outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                  >
+                    <option value="both">同时显示</option>
+                    <option value="created">仅创建时间</option>
+                    <option value="updated">仅更新时间</option>
+                  </select>
+                </div>
+              )}
             </div>
             {(subCounts[lib.id] || 0) > 0 && (
               <button

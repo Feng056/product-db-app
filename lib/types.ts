@@ -7,6 +7,7 @@ export type Library = {
   updated_at: string;
   publish_status?: string;
   publish_requested_at?: string | null;
+  time_display?: string;
 };
 
 /** 规格参数：动态 key-value 列表 */

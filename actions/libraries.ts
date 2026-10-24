@@ -121,6 +121,28 @@ export async function renameLibrary(formData: FormData): Promise<ActionResult> {
   return {};
 }
 
+/** 设置产品库的时间显示方式：both=同时显示 created=仅创建时间 updated=仅更新时间 */
+export async function setLibraryTimeDisplay(
+  libraryId: string,
+  mode: string
+): Promise<ActionResult> {
+  const { supabase, user } = await requireUser();
+  if (!["both", "created", "updated"].includes(mode)) {
+    return { error: "参数无效" };
+  }
+  if (await isSubscriptionCopy(supabase, user.id, libraryId)) {
+    return { error: "订阅的库不可修改此设置" };
+  }
+  const { error } = await supabase
+    .from("libraries")
+    .update({ time_display: mode })
+    .eq("id", libraryId)
+    .eq("user_id", user.id);
+  if (error) return { error: `设置失败：${error.message}` };
+  revalidatePath("/products");
+  return {};
+}
+
 /** 删除产品库：先清该库下所有产品的附件文件，再删除（产品级联删除） */
 export async function deleteLibrary(formData: FormData): Promise<ActionResult> {
   const { supabase, user } = await requireUser();

@@ -283,7 +283,7 @@ export async function subscribeToLibraries(
     // 不能订阅自己的库
     const { data: srcLib } = await supabase
       .from("libraries")
-      .select("user_id")
+      .select("user_id, time_display")
       .eq("id", sourceId)
       .single();
     if (!srcLib || srcLib.user_id === user.id) continue;
@@ -299,7 +299,11 @@ export async function subscribeToLibraries(
     const copyName = (sel.name || lib.library_name || "订阅产品库").slice(0, 30);
     const { data: newLib, error: libError } = await supabase
       .from("libraries")
-      .insert({ user_id: user.id, name: copyName })
+      .insert({
+        user_id: user.id,
+        name: copyName,
+        time_display: (srcLib as { time_display?: string }).time_display || "both",
+      })
       .select("id")
       .single();
     if (libError || !newLib) continue;
@@ -328,10 +332,21 @@ export async function pushToAllSubscribers(
     .from("library_subscriptions")
     .select("id, copy_library_id, subscriber_id")
     .eq("library_id", sourceLibraryId);
+  // 同步发布者的时间显示设置到副本
+  const { data: srcLib } = await supabase
+    .from("libraries")
+    .select("time_display")
+    .eq("id", sourceLibraryId)
+    .single();
+  const timeDisplay = (srcLib as { time_display?: string } | null)?.time_display || "both";
   let updated = 0;
   for (const s of subs || []) {
     if (!s.copy_library_id) continue;
     await syncCopy(supabase, sourceLibraryId, s.copy_library_id, s.subscriber_id);
+    await supabase
+      .from("libraries")
+      .update({ time_display: timeDisplay })
+      .eq("id", s.copy_library_id);
     // 标记有更新，提示订阅者
     await supabase
       .from("library_subscriptions")
@@ -453,7 +468,7 @@ export async function subscribeToPublished(
   // 校验是已发布的库且不是自己的
   const { data: srcLib } = await supabase
     .from("libraries")
-    .select("id, name, user_id, publish_status")
+    .select("id, name, user_id, publish_status, time_display")
     .eq("id", sourceLibraryId)
     .single();
   if (!srcLib || srcLib.publish_status !== "published") {
@@ -474,7 +489,11 @@ export async function subscribeToPublished(
 
   const { data: newLib, error: libError } = await supabase
     .from("libraries")
-    .insert({ user_id: user.id, name: srcLib.name.slice(0, 30) })
+    .insert({
+      user_id: user.id,
+      name: srcLib.name.slice(0, 30),
+      time_display: srcLib.time_display || "both",
+    })
     .select("id")
     .single();
   if (libError || !newLib) return { error: "订阅失败" };
