@@ -39,6 +39,20 @@ export default async function NewProductPage({
     counts[id] = (counts[id] || 0) + 1;
   }
 
+  // 各库订阅者数（推送更新用）
+  const { data: subsData } = await supabase
+    .from("library_subscriptions")
+    .select("library_id")
+    .in(
+      "library_id",
+      libraries.map((l) => l.id)
+    );
+  const subCounts: Record<string, number> = {};
+  for (const s of subsData || []) {
+    const id = (s as { library_id: string }).library_id;
+    subCounts[id] = (subCounts[id] || 0) + 1;
+  }
+
   return (
     <>
       <main className="page-container">
@@ -112,7 +126,7 @@ export default async function NewProductPage({
               <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400">
                 管理仓库
               </h2>
-              <LibraryManageList libraries={libraries} counts={counts} />
+              <LibraryManageList libraries={libraries} counts={counts} subCounts={subCounts} />
             </section>
           </div>
         )}

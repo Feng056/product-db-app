@@ -5,8 +5,13 @@ import Link from "next/link";
 import { signUp } from "@/actions/auth";
 import { inputCls } from "@/components/SpecsEditor";
 
-export default function RegisterPage() {
+export default function RegisterPage({
+  searchParams,
+}: {
+  searchParams: { code?: string };
+}) {
   const [error, setError] = useState<string | null>(null);
+  const presetCode = (searchParams.code || "").toUpperCase();
 
   async function onSubmit(formData: FormData) {
     setError(null);
@@ -44,6 +49,7 @@ export default function RegisterPage() {
           <input
             name="inviteCode"
             required
+            defaultValue={presetCode}
             placeholder="如 INVITE-A3F9K2"
             autoCapitalize="characters"
             className={`${inputCls} uppercase`}

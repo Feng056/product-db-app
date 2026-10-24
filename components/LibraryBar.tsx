@@ -8,10 +8,12 @@ export default function LibraryBar({
   libraries,
   currentId,
   baseParams,
+  subCopyIds,
 }: {
   libraries: Library[];
   currentId: string;
   baseParams: string;
+  subCopyIds?: Set<string>;
 }) {
   const hrefFor = (id: string) =>
     `/products?lib=${id}${baseParams ? `&${baseParams}` : ""}`;
@@ -32,6 +34,7 @@ export default function LibraryBar({
             }`}
           >
             {lib.name}
+            {subCopyIds?.has(lib.id) && <span className="ml-1 opacity-70">📡</span>}
           </Link>
         ))}
       </div>

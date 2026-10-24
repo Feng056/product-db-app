@@ -5,6 +5,7 @@ import { ensureDefaultLibrary } from "@/actions/libraries";
 import BottomNav from "@/components/BottomNav";
 import ProductCard from "@/components/ProductCard";
 import LibraryBar from "@/components/LibraryBar";
+import SubscriptionActions from "@/components/SubscriptionActions";
 import FilterCollapse from "@/components/FilterCollapse";
 import ProductGridCard from "@/components/ProductGridCard";
 import SortSelect from "@/components/SortSelect";
@@ -28,6 +29,22 @@ export default async function ProductsPage({ searchParams }: Props) {
   const libraries = await ensureDefaultLibrary();
   const currentId =
     libraries.find((l) => l.id === searchParams.lib)?.id ?? libraries[0].id;
+
+  // 是否为订阅副本（只读）
+  const { data: subInfo } = await supabase
+    .from("library_subscriptions")
+    .select("id, library_id")
+    .eq("copy_library_id", currentId)
+    .eq("subscriber_id", user!.id)
+    .single();
+  const isSubCopy = !!subInfo;
+
+  // 所有订阅副本 id（用于库切换条打标）
+  const { data: allSubs } = await supabase
+    .from("library_subscriptions")
+    .select("copy_library_id")
+    .eq("subscriber_id", user!.id);
+  const subCopyIds = new Set((allSubs || []).map((s) => s.copy_library_id));
 
   // URL 中选中的分类（多选，只保留有效的）
   const selectedCategories = (searchParams.categories || "")
@@ -244,6 +261,11 @@ export default async function ProductsPage({ searchParams }: Props) {
         <div className="flex items-center justify-between">
           <h1 className="max-w-[60%] truncate text-xl font-bold">
             {libraries.find((l) => l.id === currentId)?.name || "产品库"}
+            {isSubCopy && (
+              <span className="ml-2 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                订阅
+              </span>
+            )}
           </h1>
           {headerDisplay === "avatar" &&
             (headerAvatarUrl ? (
@@ -273,7 +295,11 @@ export default async function ProductsPage({ searchParams }: Props) {
           libraries={libraries}
           currentId={currentId}
           baseParams={baseParams}
+          subCopyIds={subCopyIds}
         />
+
+        {/* 订阅副本：刷新 / 取消订阅 */}
+        {isSubCopy && <SubscriptionActions libraryId={currentId} />}
 
         {/* 统一筛选：分类（单选）+ 标签（多选），默认显示一排 */}
         {(categories.length > 0 || tags.length > 0) && (

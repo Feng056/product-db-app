@@ -56,6 +56,14 @@ async function requireUserAndLib(libraryId?: string) {
       .eq("user_id", user.id)
       .single();
     if (!lib) throw new Error("所选产品库无效");
+    // 订阅副本只读，不可导入
+    const { data: sub } = await supabase
+      .from("library_subscriptions")
+      .select("id")
+      .eq("copy_library_id", libraryId)
+      .eq("subscriber_id", user.id)
+      .limit(1);
+    if (sub && sub.length > 0) throw new Error("订阅的库为只读，不可导入");
     libId = lib.id;
   }
   return { supabase, user, libId };

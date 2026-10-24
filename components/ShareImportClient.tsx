@@ -2,9 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { importSharedLibraries, type SharedLibraryData } from "@/actions/shares";
+import {
+  importSharedLibraries,
+  subscribeToLibraries,
+  type SharedLibraryData,
+} from "@/actions/shares";
 
-/** 分享导入：多选库、改名后导入 */
+/** 分享导入：订阅（只读同步）或导入副本（二选一） */
 export default function ShareImportClient({
   token,
   shared,
@@ -14,11 +18,12 @@ export default function ShareImportClient({
 }) {
   const router = useRouter();
   const libs = shared.libraries || [];
+  const [mode, setMode] = useState<"subscribe" | "import">("subscribe");
   const [selected, setSelected] = useState<Set<number>>(new Set(libs.map((_, i) => i)));
   const [names, setNames] = useState<Record<number, string>>(
     Object.fromEntries(libs.map((l, i) => [i, l.library_name || ""]))
   );
-  const [importing, setImporting] = useState(false);
+  const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const toggle = (i: number) => {
@@ -28,27 +33,68 @@ export default function ShareImportClient({
     setSelected(next);
   };
 
-  async function onImport() {
-    if (selected.size === 0 || importing) return;
-    setImporting(true);
+  async function onConfirm() {
+    if (selected.size === 0 || working) return;
+    setWorking(true);
     setError(null);
     const selections = Array.from(selected).map((i) => ({
       index: i,
       name: (names[i] || libs[i].library_name || "").trim(),
     }));
-    const res = await importSharedLibraries(token, selections);
-    setImporting(false);
-    if (res.error) {
-      setError(res.error);
-    } else if (res.libraryIds && res.libraryIds.length > 0) {
-      router.push(`/products?lib=${res.libraryIds[0]}`);
+    if (mode === "subscribe") {
+      const res = await subscribeToLibraries(token, selections);
+      setWorking(false);
+      if (res.error) {
+        setError(res.error);
+      } else if (res.libraryIds && res.libraryIds.length > 0) {
+        router.push(`/products?lib=${res.libraryIds[0]}`);
+      } else {
+        setError("订阅失败，可能已经订阅过");
+      }
+    } else {
+      const res = await importSharedLibraries(token, selections);
+      setWorking(false);
+      if (res.error) {
+        setError(res.error);
+      } else if (res.libraryIds && res.libraryIds.length > 0) {
+        router.push(`/products?lib=${res.libraryIds[0]}`);
+      }
     }
   }
 
   return (
     <div className="mt-6">
+      {/* 订阅 / 导入切换 */}
+      <div className="mb-3 grid grid-cols-2 gap-2 rounded-2xl bg-gray-100 dark:bg-gray-800 p-1">
+        <button
+          onClick={() => setMode("subscribe")}
+          className={`rounded-xl py-2.5 text-sm font-medium ${
+            mode === "subscribe"
+              ? "bg-white dark:bg-gray-900 shadow-sm text-blue-600"
+              : "text-gray-500 dark:text-gray-400"
+          }`}
+        >
+          📡 订阅
+        </button>
+        <button
+          onClick={() => setMode("import")}
+          className={`rounded-xl py-2.5 text-sm font-medium ${
+            mode === "import"
+              ? "bg-white dark:bg-gray-900 shadow-sm text-blue-600"
+              : "text-gray-500 dark:text-gray-400"
+          }`}
+        >
+          📥 导入副本
+        </button>
+      </div>
+      <p className="mb-3 text-xs text-gray-400 text-center">
+        {mode === "subscribe"
+          ? "订阅后只读，主人推送更新或你点刷新即可同步最新内容"
+          : "导入为独立副本，可自由修改，与主人不再关联"}
+      </p>
+
       <div className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-        选择要导入的仓库（{selected.size}/{libs.length}）
+        选择仓库（{selected.size}/{libs.length}）
       </div>
       <div className="space-y-3">
         {libs.map((lib, i) => (
@@ -97,14 +143,20 @@ export default function ShareImportClient({
       )}
 
       <button
-        onClick={onImport}
-        disabled={importing || selected.size === 0}
+        onClick={onConfirm}
+        disabled={working || selected.size === 0}
         className="mt-4 w-full rounded-2xl bg-blue-600 py-3.5 text-base font-semibold text-white disabled:opacity-50"
       >
-        {importing ? "导入中…" : `导入选中（${selected.size} 个仓库）`}
+        {working
+          ? mode === "subscribe" ? "订阅中…" : "导入中…"
+          : mode === "subscribe"
+            ? `订阅选中（${selected.size} 个仓库）`
+            : `导入选中（${selected.size} 个仓库）`}
       </button>
       <p className="mt-2 text-center text-xs text-gray-400 dark:text-gray-500">
-        导入会在你的账号下按上面的名字新建仓库
+        {mode === "subscribe"
+          ? "订阅会在你的账号下新建只读仓库"
+          : "导入会在你的账号下按上面的名字新建仓库"}
       </p>
     </div>
   );

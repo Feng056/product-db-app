@@ -11,6 +11,7 @@ import CreateInviteCodeForm from "@/components/CreateInviteCodeForm";
 import ThemeSelector from "@/components/ThemeSelector";
 import GroupManager from "@/components/GroupManager";
 import UserManager from "@/components/UserManager";
+import InviteCodeQR from "@/components/InviteCodeQR";
 import { formatDateTime } from "@/lib/utils";
 import type { InviteCode, Profile, Group } from "@/lib/types";
 
@@ -233,6 +234,7 @@ export default async function SettingsPage({
                           {c.code}
                         </code>
                         <div className="flex shrink-0 items-center gap-2">
+                          <InviteCodeQR code={c.code} />
                           <ToggleButton code={c} />
                           <DeleteCodeButton id={c.id} />
                         </div>

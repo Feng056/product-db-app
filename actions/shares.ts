@@ -202,3 +202,230 @@ export async function importSharedLibrary(
     error: res.error,
   };
 }
+
+/* ================= 订阅制（复制+同步） ================= */
+
+/** 从源库复制产品到目标库（含图片重存） */
+async function copyProductsToLibrary(
+  supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
+  sourceLibraryId: string,
+  targetLibraryId: string,
+  targetUserId: string
+): Promise<number> {
+  // 读源库产品（分享者已通过 get_library_share 授权，或主人自己）
+  const { data: products } = await supabase
+    .from("products")
+    .select("name, model, category, price, specs, notes, images")
+    .eq("library_id", sourceLibraryId);
+  let copied = 0;
+  for (const p of products || []) {
+    const newImages: string[] = [];
+    for (const imgPath of (p.images as string[]) || []) {
+      try {
+        const { data: pub } = supabase.storage
+          .from("product-images")
+          .getPublicUrl(imgPath);
+        const res = await fetch(pub.publicUrl);
+        if (!res.ok) continue;
+        const buf = await res.arrayBuffer();
+        const ext = imgPath.split(".").pop()?.slice(0, 5) || "jpg";
+        const newPath = `${targetUserId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from("product-images")
+          .upload(newPath, buf, { contentType: "image/jpeg", upsert: false });
+        if (!upErr) newImages.push(newPath);
+      } catch {
+        /* 单张失败跳过 */
+      }
+    }
+    const { error: insErr } = await supabase.from("products").insert({
+      user_id: targetUserId,
+      library_id: targetLibraryId,
+      name: String(p.name || "未命名产品"),
+      model: String(p.model || ""),
+      category: String(p.category || "") || "未分类",
+      price: (p as { price?: number | null }).price ?? null,
+      specs: Array.isArray(p.specs) ? p.specs : [],
+      notes: String(p.notes || ""),
+      images: newImages,
+      docs: [],
+    });
+    if (!insErr) copied++;
+  }
+  return copied;
+}
+
+/** 订阅：导入副本 + 建立订阅关系（副本只读） */
+export async function subscribeToLibraries(
+  token: string,
+  selections: { index: number; name: string }[]
+): Promise<{ subscribed: number; libraryIds?: string[]; error?: string }> {
+  const { supabase, user } = await requireUser();
+
+  const shared = await getSharedLibrary(token);
+  if (!shared.ok || !shared.libraries) {
+    return { subscribed: 0, error: shared.message || "分享链接无效" };
+  }
+  // 源库 id 列表
+  const { data: shareRow } = await supabase
+    .from("library_shares")
+    .select("library_ids")
+    .eq("token", token)
+    .single();
+  const sourceIds = (shareRow?.library_ids as string[]) || [];
+
+  let subscribed = 0;
+  const libraryIds: string[] = [];
+  for (const sel of selections) {
+    const lib = shared.libraries[sel.index];
+    const sourceId = sourceIds[sel.index];
+    if (!lib || !sourceId) continue;
+    // 不能订阅自己的库
+    const { data: srcLib } = await supabase
+      .from("libraries")
+      .select("user_id")
+      .eq("id", sourceId)
+      .single();
+    if (!srcLib || srcLib.user_id === user.id) continue;
+    // 已订阅过则跳过
+    const { data: existing } = await supabase
+      .from("library_subscriptions")
+      .select("id")
+      .eq("library_id", sourceId)
+      .eq("subscriber_id", user.id)
+      .limit(1);
+    if (existing && existing.length > 0) continue;
+
+    const copyName = (sel.name || lib.library_name || "订阅产品库").slice(0, 30);
+    const { data: newLib, error: libError } = await supabase
+      .from("libraries")
+      .insert({ user_id: user.id, name: copyName })
+      .select("id")
+      .single();
+    if (libError || !newLib) continue;
+
+    await copyProductsToLibrary(supabase, sourceId, newLib.id, user.id);
+    await supabase.from("library_subscriptions").insert({
+      library_id: sourceId,
+      copy_library_id: newLib.id,
+      subscriber_id: user.id,
+    });
+    subscribed++;
+    libraryIds.push(newLib.id);
+  }
+
+  revalidatePath("/products");
+  return { subscribed, libraryIds };
+}
+
+/** 同步单个副本：清空后从源库重拷 */
+async function syncCopy(
+  supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
+  sourceId: string,
+  copyId: string,
+  copyOwnerId: string
+): Promise<number> {
+  await supabase.from("products").delete().eq("library_id", copyId);
+  return copyProductsToLibrary(supabase, sourceId, copyId, copyOwnerId);
+}
+
+/** 主人一键推送：把源库最新内容覆盖到所有订阅者的副本 */
+export async function pushSubscriptionUpdate(
+  sourceLibraryId: string
+): Promise<{ updated: number; error?: string }> {
+  const { supabase, user } = await requireUser();
+  // 校验是主人的库
+  const { data: lib } = await supabase
+    .from("libraries")
+    .select("id")
+    .eq("id", sourceLibraryId)
+    .eq("user_id", user.id)
+    .single();
+  if (!lib) return { updated: 0, error: "无权限" };
+
+  const { data: subs } = await supabase
+    .from("library_subscriptions")
+    .select("copy_library_id, subscriber_id")
+    .eq("library_id", sourceLibraryId);
+  let updated = 0;
+  for (const s of subs || []) {
+    if (!s.copy_library_id) continue;
+    await syncCopy(supabase, sourceLibraryId, s.copy_library_id, s.subscriber_id);
+    updated++;
+  }
+  revalidatePath("/products");
+  return { updated };
+}
+
+/** 订阅者刷新：把自己的副本同步到最新 */
+export async function pullSubscriptionUpdate(
+  copyLibraryId: string
+): Promise<{ updated: number; error?: string }> {
+  const { supabase, user } = await requireUser();
+  const { data: sub } = await supabase
+    .from("library_subscriptions")
+    .select("library_id, subscriber_id")
+    .eq("copy_library_id", copyLibraryId)
+    .eq("subscriber_id", user.id)
+    .single();
+  if (!sub) return { updated: 0, error: "不是订阅的库" };
+  const count = await syncCopy(supabase, sub.library_id, copyLibraryId, user.id);
+  revalidatePath("/products");
+  return { updated: count };
+}
+
+/** 取消订阅：删除副本 + 订阅关系（整库删除） */
+export async function unsubscribeFromLibrary(
+  copyLibraryId: string
+): Promise<{ error?: string }> {
+  const { supabase, user } = await requireUser();
+  const { data: sub } = await supabase
+    .from("library_subscriptions")
+    .select("id")
+    .eq("copy_library_id", copyLibraryId)
+    .eq("subscriber_id", user.id)
+    .single();
+  if (!sub) return { error: "不是订阅的库" };
+  await supabase.from("library_subscriptions").delete().eq("id", sub.id);
+  // 删除整个副本库（级联删除产品）
+  const { error } = await supabase
+    .from("libraries")
+    .delete()
+    .eq("id", copyLibraryId)
+    .eq("user_id", user.id);
+  if (error) return { error: error.message };
+  revalidatePath("/products");
+  return {};
+}
+
+/** 查询某库的订阅信息 */
+export async function getSubscriptionInfo(libraryId: string): Promise<{
+  isCopy: boolean;
+  sourceId?: string;
+  subscriberCount?: number;
+}> {
+  const { supabase, user } = await requireUser();
+  // 是不是订阅副本？
+  const { data: asCopy } = await supabase
+    .from("library_subscriptions")
+    .select("library_id")
+    .eq("copy_library_id", libraryId)
+    .eq("subscriber_id", user.id)
+    .single();
+  if (asCopy) return { isCopy: true, sourceId: asCopy.library_id };
+  // 是不是被订阅的源库？
+  const { data: lib } = await supabase
+    .from("libraries")
+    .select("id")
+    .eq("id", libraryId)
+    .eq("user_id", user.id)
+    .single();
+  if (lib) {
+    const { count } = await supabase
+      .from("library_subscriptions")
+      .select("id", { count: "exact", head: true })
+      .eq("library_id", libraryId);
+    return { isCopy: false, subscriberCount: count || 0 };
+  }
+  return { isCopy: false };
+}

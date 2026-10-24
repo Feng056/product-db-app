@@ -51,6 +51,15 @@ export default async function ProductDetailPage({
   const product = data as Product;
   const isEdit = searchParams.edit === "1";
 
+  // 订阅副本只读
+  const { data: sub } = await supabase
+    .from("library_subscriptions")
+    .select("id")
+    .eq("copy_library_id", product.library_id)
+    .eq("subscriber_id", user!.id)
+    .limit(1);
+  const isReadOnly = !!sub && sub.length > 0;
+
   const imageUrls: Record<string, string> = {};
   for (const p of product.images || []) {
     imageUrls[p] = supabase.storage.from("product-images").getPublicUrl(p).data.publicUrl;
@@ -63,7 +72,7 @@ export default async function ProductDetailPage({
           <Link href="/products" className="flex items-center gap-2 text-gray-500 dark:text-gray-400 ">
             <span className="text-xl">‹</span> 返回
           </Link>
-          {!isEdit && (
+          {!isEdit && !isReadOnly && (
             <Link
               href={`/products/${product.id}?edit=1`}
               className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white"
@@ -71,9 +80,19 @@ export default async function ProductDetailPage({
               编辑
             </Link>
           )}
+          {isReadOnly && (
+            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+              订阅内容 · 只读
+            </span>
+          )}
         </div>
 
         {isEdit ? (
+          isReadOnly ? (
+            <p className="rounded-2xl bg-white dark:bg-gray-900 p-8 text-center text-sm text-gray-400">
+              订阅的内容为只读，不可编辑
+            </p>
+          ) : (
           <>
             <h1 className="mb-4 text-xl font-bold">编辑产品</h1>
             <ProductForm product={product} imageUrls={imageUrls} action={updateProduct} />
@@ -81,6 +100,7 @@ export default async function ProductDetailPage({
               <DeleteButton id={product.id} />
             </div>
           </>
+          )
         ) : (
           <div className="space-y-4">
             {/* 图片 */}

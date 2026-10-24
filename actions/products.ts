@@ -16,6 +16,24 @@ async function requireUser() {
   return { supabase, user };
 }
 
+/** 校验产品库可写：订阅副本只读，不可新增/修改/删除产品 */
+async function assertLibraryWritable(
+  supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
+  userId: string,
+  libraryId: string
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("library_subscriptions")
+    .select("id")
+    .eq("copy_library_id", libraryId)
+    .eq("subscriber_id", userId)
+    .limit(1);
+  if (data && data.length > 0) {
+    return "订阅的库为只读，不可修改。如需最新内容请点刷新";
+  }
+  return null;
+}
+
 function parseSpecs(raw: string): SpecItem[] {
   try {
     const arr = JSON.parse(raw || "[]");
@@ -89,6 +107,9 @@ export async function createProduct(formData: FormData): Promise<ActionResult> {
       .limit(1);
     libraryId = libs?.[0]?.id || null;
   }
+  if (!libraryId) return { error: "请先创建产品库" };
+  const readonlyErr = await assertLibraryWritable(supabase, user.id, libraryId);
+  if (readonlyErr) return { error: readonlyErr };
 
   try {
     const imageFiles = (formData.getAll("newImages") as File[]).filter(
@@ -136,11 +157,13 @@ export async function updateProduct(formData: FormData): Promise<ActionResult> {
   // 确认是自己的产品
   const { data: existing } = await supabase
     .from("products")
-    .select("id, images, docs")
+    .select("id, images, docs, library_id")
     .eq("id", id)
     .eq("user_id", user.id)
     .single();
   if (!existing) return { error: "产品不存在或无权限" };
+  const readonlyErr = await assertLibraryWritable(supabase, user.id, existing.library_id);
+  if (readonlyErr) return { error: readonlyErr };
 
   try {
     const imageFiles = (formData.getAll("newImages") as File[]).filter(
@@ -206,11 +229,13 @@ export async function deleteProduct(id: string): Promise<ActionResult> {
 
   const { data: existing } = await supabase
     .from("products")
-    .select("id, images, docs")
+    .select("id, images, docs, library_id")
     .eq("id", id)
     .eq("user_id", user.id)
     .single();
   if (!existing) return { error: "产品不存在或无权限" };
+  const readonlyErr = await assertLibraryWritable(supabase, user.id, existing.library_id);
+  if (readonlyErr) return { error: readonlyErr };
 
   const imagePaths = (existing.images as string[]) || [];
   const docPaths = ((existing.docs as DocItem[]) || []).map((d) => d.path);
@@ -336,6 +361,8 @@ export async function batchUpdatePrice(
     .eq("user_id", user.id)
     .single();
   if (!lib) return { error: "产品库不存在或无权限" };
+  const readonlyErr = await assertLibraryWritable(supabase, user.id, libraryId);
+  if (readonlyErr) return { error: readonlyErr };
 
   // 仅更新属于该用户该库的产品
   const { data: updated, error } = await supabase
