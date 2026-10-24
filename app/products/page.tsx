@@ -42,9 +42,21 @@ export default async function ProductsPage({ searchParams }: Props) {
   // 所有订阅副本 id（用于库切换条打标）
   const { data: allSubs } = await supabase
     .from("library_subscriptions")
-    .select("copy_library_id")
+    .select("copy_library_id, has_update")
     .eq("subscriber_id", user!.id);
   const subCopyIds = new Set((allSubs || []).map((s) => s.copy_library_id));
+  const updatedCopyIds = new Set(
+    ((allSubs || []) as { copy_library_id: string; has_update: boolean }[])
+      .filter((s) => s.has_update)
+      .map((s) => s.copy_library_id)
+  );
+
+  // 如果当前打开的订阅库有更新通知，清除它（用户已看到）
+  if (updatedCopyIds.has(currentId)) {
+    const { dismissUpdateNotify } = await import("@/actions/shares");
+    await dismissUpdateNotify(currentId);
+    updatedCopyIds.delete(currentId);
+  }
 
   // URL 中选中的分类（多选，只保留有效的）
   const selectedCategories = (searchParams.categories || "")
@@ -345,6 +357,7 @@ export default async function ProductsPage({ searchParams }: Props) {
           currentId={currentId}
           baseParams={baseParams}
           subCopyIds={subCopyIds}
+          updatedCopyIds={updatedCopyIds}
         />
 
         {/* 订阅副本：刷新 / 取消订阅 */}

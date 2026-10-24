@@ -9,11 +9,13 @@ export default function LibraryBar({
   currentId,
   baseParams,
   subCopyIds,
+  updatedCopyIds,
 }: {
   libraries: Library[];
   currentId: string;
   baseParams: string;
   subCopyIds?: Set<string>;
+  updatedCopyIds?: Set<string>;
 }) {
   const hrefFor = (id: string) =>
     `/products?lib=${id}${baseParams ? `&${baseParams}` : ""}`;
@@ -27,7 +29,7 @@ export default function LibraryBar({
           <Link
             key={lib.id}
             href={hrefFor(lib.id)}
-            className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${
+            className={`relative shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${
               lib.id === currentId
                 ? "bg-blue-600 text-white"
                 : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
@@ -35,6 +37,12 @@ export default function LibraryBar({
           >
             {lib.name}
             {subCopyIds?.has(lib.id) && <span className="ml-1 opacity-70">📡</span>}
+            {updatedCopyIds?.has(lib.id) && (
+              <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex h-3 w-3 rounded-full bg-red-500"></span>
+              </span>
+            )}
           </Link>
         ))}
       </div>

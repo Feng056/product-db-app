@@ -326,12 +326,17 @@ export async function pushToAllSubscribers(
 ): Promise<number> {
   const { data: subs } = await supabase
     .from("library_subscriptions")
-    .select("copy_library_id, subscriber_id")
+    .select("id, copy_library_id, subscriber_id")
     .eq("library_id", sourceLibraryId);
   let updated = 0;
   for (const s of subs || []) {
     if (!s.copy_library_id) continue;
     await syncCopy(supabase, sourceLibraryId, s.copy_library_id, s.subscriber_id);
+    // 标记有更新，提示订阅者
+    await supabase
+      .from("library_subscriptions")
+      .update({ has_update: true })
+      .eq("id", s.id);
     updated++;
   }
   return updated;
@@ -510,4 +515,14 @@ export async function importPublishedLibrary(
   await copyProductsToLibrary(supabase, sourceLibraryId, newLib.id, user.id);
   revalidatePath("/products");
   return { libraryId: newLib.id };
+}
+
+/** 清除订阅更新通知（用户已查看） */
+export async function dismissUpdateNotify(copyLibraryId: string): Promise<void> {
+  const { supabase, user } = await requireUser();
+  await supabase
+    .from("library_subscriptions")
+    .update({ has_update: false })
+    .eq("copy_library_id", copyLibraryId)
+    .eq("subscriber_id", user.id);
 }
