@@ -24,6 +24,7 @@ export default function LibraryManageList({
   const [unsubscribingId, setUnsubscribingId] = useState<string | null>(null);
   const [pushMsg, setPushMsg] = useState("");
   const [publishLib, setPublishLib] = useState<{ id: string; name: string; isUpdate: boolean } | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   async function onRename(formData: FormData) {
     setError(null);
@@ -100,12 +101,6 @@ export default function LibraryManageList({
   const ownLibs = libraries.filter((l) => !subCopyIds.has(l.id));
   const subLibs = libraries.filter((l) => subCopyIds.has(l.id));
 
-  const timeDisplayLabel: Record<string, string> = {
-    both: "同时显示",
-    created: "仅创建时间",
-    updated: "仅更新时间",
-  };
-
   function renderRow(lib: Library) {
     const isSubCopy = subCopyIds.has(lib.id);
     return (
@@ -139,93 +134,109 @@ export default function LibraryManageList({
             </button>
           </form>
         ) : (
-          <div className="flex items-center gap-2">
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
-                {lib.name}
-                {publishBadge(lib.publish_status)}
+          <>
+            <div className="flex items-center gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
+                  {lib.name}
+                  {publishBadge(lib.publish_status)}
+                </div>
+                <div className="text-xs text-gray-400">
+                  {counts[lib.id] || 0} 个产品
+                  {!isSubCopy && (
+                    <span className="ml-1 text-blue-600 dark:text-blue-400">
+                      · {subCounts[lib.id] || 0} 人订阅
+                    </span>
+                  )}
+                </div>
               </div>
-              <div className="text-xs text-gray-400">
-                {counts[lib.id] || 0} 个产品
-                {(subCounts[lib.id] || 0) > 0 && (
-                  <span className="ml-1 text-blue-600">· {subCounts[lib.id]} 个订阅</span>
-                )}
-              </div>
-              {/* 自建库：时间显示设置（控制产品详情页创建时间/更新时间的展示） */}
-              {!isSubCopy && (
-                <div className="mt-1 flex items-center gap-1.5">
-                  <span className="text-xs text-gray-400">时间显示</span>
+              {isSubCopy ? (
+                /* 订阅副本：不可改名/发布，只能取消订阅（整库删除） */
+                <button
+                  onClick={() => onUnsubscribe(lib.id, lib.name)}
+                  disabled={unsubscribingId === lib.id}
+                  className="shrink-0 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400 disabled:opacity-50"
+                >
+                  {unsubscribingId === lib.id ? "取消中…" : "取消订阅"}
+                </button>
+              ) : (
+                /* 自建库：操作收进二级菜单 */
+                <button
+                  onClick={() => setExpandedId(expandedId === lib.id ? null : lib.id)}
+                  className="shrink-0 rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                >
+                  {expandedId === lib.id ? "收起 ▲" : "管理 ⋯"}
+                </button>
+              )}
+            </div>
+
+            {/* 二级菜单：自建库的各项操作 */}
+            {!isSubCopy && expandedId === lib.id && (
+              <div className="mt-2 space-y-2 rounded-xl bg-gray-50 p-2.5 dark:bg-gray-800/60">
+                {/* 时间显示设置 */}
+                <div className="flex items-center gap-2">
+                  <span className="shrink-0 text-xs text-gray-500 dark:text-gray-400">时间显示</span>
                   <select
                     value={lib.time_display || "both"}
                     onChange={(e) => onTimeDisplay(lib.id, e.target.value)}
-                    className="rounded-lg border border-gray-200 bg-gray-50 px-1.5 py-1 text-xs text-gray-600 outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                    className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-600 outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
                   >
-                    <option value="both">同时显示</option>
-                    <option value="created">仅创建时间</option>
-                    <option value="updated">仅更新时间</option>
+                    <option value="both">同时显示创建时间/更新时间</option>
+                    <option value="created">仅显示创建时间</option>
+                    <option value="updated">仅显示更新时间</option>
                   </select>
                 </div>
-              )}
-            </div>
-            {(subCounts[lib.id] || 0) > 0 && (
-              <button
-                onClick={() => onPush(lib.id, lib.name, subCounts[lib.id])}
-                disabled={pushingId === lib.id}
-                className="shrink-0 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-medium text-white disabled:opacity-50"
-              >
-                {pushingId === lib.id ? "推送中…" : "📡 推送更新"}
-              </button>
+                {/* 操作按钮 */}
+                <div className="flex flex-wrap gap-2">
+                  {(subCounts[lib.id] || 0) > 0 && (
+                    <button
+                      onClick={() => onPush(lib.id, lib.name, subCounts[lib.id])}
+                      disabled={pushingId === lib.id}
+                      className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+                    >
+                      {pushingId === lib.id ? "推送中…" : "📡 推送更新"}
+                    </button>
+                  )}
+                  {(!lib.publish_status || lib.publish_status === "private" || lib.publish_status === "rejected") && (
+                    <button
+                      onClick={() => onRequestPublish(lib.id, lib.name, false)}
+                      className="rounded-lg bg-green-50 px-3 py-1.5 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                    >
+                      发布
+                    </button>
+                  )}
+                  {lib.publish_status === "published" && (
+                    <button
+                      onClick={() => onRequestPublish(lib.id, lib.name, true)}
+                      className="rounded-lg bg-green-50 px-3 py-1.5 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                    >
+                      申请更新
+                    </button>
+                  )}
+                  {(lib.publish_status === "pending" || lib.publish_status === "published") && (
+                    <button
+                      onClick={() => onUnpublish(lib.id, lib.name, lib.publish_status === "published")}
+                      className="rounded-lg bg-amber-50 px-3 py-1.5 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                    >
+                      {lib.publish_status === "pending" ? "撤回申请" : "下架"}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setRenamingId(lib.id)}
+                    className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                  >
+                    改名
+                  </button>
+                  <button
+                    onClick={() => onDelete(lib.id, lib.name)}
+                    className="rounded-lg bg-red-50 px-3 py-1.5 text-xs text-red-600 dark:bg-red-900/30 dark:text-red-400"
+                  >
+                    删除
+                  </button>
+                </div>
+              </div>
             )}
-            {subCopyIds.has(lib.id) ? (
-              /* 订阅副本：不可改名/发布，只能取消订阅（整库删除） */
-              <button
-                onClick={() => onUnsubscribe(lib.id, lib.name)}
-                disabled={unsubscribingId === lib.id}
-                className="shrink-0 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400 disabled:opacity-50"
-              >
-                {unsubscribingId === lib.id ? "取消中…" : "取消订阅"}
-              </button>
-            ) : (
-              <>
-                {(!lib.publish_status || lib.publish_status === "private" || lib.publish_status === "rejected") && (
-                  <button
-                    onClick={() => onRequestPublish(lib.id, lib.name, false)}
-                    className="shrink-0 rounded-lg bg-green-50 px-2.5 py-1.5 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                  >
-                    发布
-                  </button>
-                )}
-                {lib.publish_status === "published" && (
-                  <button
-                    onClick={() => onRequestPublish(lib.id, lib.name, true)}
-                    className="shrink-0 rounded-lg bg-green-50 px-2.5 py-1.5 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                  >
-                    申请更新
-                  </button>
-                )}
-                {(lib.publish_status === "pending" || lib.publish_status === "published") && (
-                  <button
-                    onClick={() => onUnpublish(lib.id, lib.name, lib.publish_status === "published")}
-                    className="shrink-0 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                  >
-                    {lib.publish_status === "pending" ? "撤回" : "下架"}
-                  </button>
-                )}
-                <button
-                  onClick={() => setRenamingId(lib.id)}
-                  className="shrink-0 rounded-lg bg-gray-100 px-2.5 py-1.5 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-400"
-                >
-                  改名
-                </button>
-                <button
-                  onClick={() => onDelete(lib.id, lib.name)}
-                  className="shrink-0 rounded-lg bg-red-50 px-2.5 py-1.5 text-xs text-red-600 dark:bg-red-900/30 dark:text-red-400"
-                >
-                  删除
-                </button>
-              </>
-            )}
-          </div>
+          </>
         )}
       </div>
     );
