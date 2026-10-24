@@ -30,20 +30,22 @@ export default async function ProductsPage({ searchParams }: Props) {
   const currentId =
     libraries.find((l) => l.id === searchParams.lib)?.id ?? libraries[0].id;
 
-  // 是否为订阅副本（只读）
-  const { data: subInfo } = await supabase
-    .from("library_subscriptions")
-    .select("id, library_id")
-    .eq("copy_library_id", currentId)
-    .eq("subscriber_id", user!.id)
-    .single();
+  // 是否为订阅副本（只读）+ 所有订阅副本（并行查询）
+  const [subInfoRes, allSubsRes] = await Promise.all([
+    supabase
+      .from("library_subscriptions")
+      .select("id, library_id")
+      .eq("copy_library_id", currentId)
+      .eq("subscriber_id", user!.id)
+      .single(),
+    supabase
+      .from("library_subscriptions")
+      .select("copy_library_id, has_update")
+      .eq("subscriber_id", user!.id),
+  ]);
+  const subInfo = subInfoRes.data;
+  const allSubs = allSubsRes.data;
   const isSubCopy = !!subInfo;
-
-  // 所有订阅副本 id（用于库切换条打标）
-  const { data: allSubs } = await supabase
-    .from("library_subscriptions")
-    .select("copy_library_id, has_update")
-    .eq("subscriber_id", user!.id);
   const subCopyIds = new Set((allSubs || []).map((s) => s.copy_library_id));
   const updatedCopyIds = new Set(
     ((allSubs || []) as { copy_library_id: string; has_update: boolean }[])
@@ -68,12 +70,38 @@ export default async function ProductsPage({ searchParams }: Props) {
     1000
   );
 
-  // 该库下的分类 + 规格（用于分类筛选和标签提取）
-  const { data: allCats } = await supabase
-    .from("products")
-    .select("category, specs")
-    .eq("user_id", user!.id)
-    .eq("library_id", currentId);
+  // 排序 / 搜索参数（需在并行查询前声明）
+  const validSorts = ["newest", "price_asc", "price_desc", "name"] as const;
+  const sort: (typeof validSorts)[number] = (validSorts as readonly string[]).includes(searchParams.sort || "")
+    ? (searchParams.sort as (typeof validSorts)[number])
+    : "newest";
+  const query = (searchParams.q || "").trim();
+  const searchMode = searchParams.mode === "all" ? "all" : "name";
+  // 选中标签先不过滤（tagSet 在分类查询后才得到），RPC 侧会处理
+  const rawSelectedTags = (searchParams.tags || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s);
+
+  // 该库下的分类 + 规格（用于分类筛选和标签提取）与列表查询并行
+  const [allCatsRes, searchRes] = await Promise.all([
+    supabase
+      .from("products")
+      .select("category, specs")
+      .eq("user_id", user!.id)
+      .eq("library_id", currentId),
+    supabase.rpc("search_products", {
+      p_library_id: currentId,
+      p_categories: selectedCategories,
+      p_tags: rawSelectedTags,
+      p_limit: limit,
+      p_sort: sort,
+      p_query: query,
+      p_search_mode: searchMode,
+    }),
+  ]);
+  const allCats = allCatsRes.data;
+  const searchResult = searchRes.data;
   const categories = Array.from(
     new Set((allCats || []).map((c) => c.category).filter(Boolean))
   ).sort();
@@ -89,10 +117,7 @@ export default async function ProductsPage({ searchParams }: Props) {
   const tags = Array.from(tagSet).sort();
 
   // URL 中选中的标签（只保留有效的）
-  const selectedTags = (searchParams.tags || "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter((s) => s && tagSet.has(s));
+  const selectedTags = rawSelectedTags.filter((s) => tagSet.has(s));
 
   // 最近交互的标签顺序（选中或取消都算，最近的在前）
   const deselectedTags = (searchParams.deselected || "")
@@ -102,17 +127,6 @@ export default async function ProductsPage({ searchParams }: Props) {
 
   // 视图：list 列表 / grid 宫格
   const view = searchParams.view === "grid" ? "grid" : "list";
-
-  // 排序：newest 最新 / price_asc 价格↑ / price_desc 价格↓ / name 名称
-  const validSorts = ["newest", "price_asc", "price_desc", "name"] as const;
-  const sort: (typeof validSorts)[number] = (validSorts as readonly string[]).includes(searchParams.sort || "")
-    ? (searchParams.sort as (typeof validSorts)[number])
-    : "newest";
-
-  // 搜索关键词（名称/型号模糊匹配）
-  const query = (searchParams.q || "").trim();
-  // 搜索模式：name 只匹配名称（默认），all 匹配全部参数
-  const searchMode = searchParams.mode === "all" ? "all" : "name";
 
   const baseParams = [
     selectedCategories.length > 0
@@ -133,15 +147,7 @@ export default async function ProductsPage({ searchParams }: Props) {
     .join("&");
 
   // 列表查询走数据库函数 search_products（多分类 + 多标签 OR 筛选）
-  const { data: searchResult } = await supabase.rpc("search_products", {
-    p_library_id: currentId,
-    p_categories: selectedCategories,
-    p_tags: selectedTags,
-    p_limit: limit,
-    p_sort: sort,
-    p_query: query,
-    p_search_mode: searchMode,
-  });
+  // 注：已在上方与分类查询并行执行，此处直接解析结果
   const parsed = (searchResult || { total: 0, items: [] }) as {
     total: number;
     items: Product[];

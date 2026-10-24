@@ -42,42 +42,47 @@ export default async function SettingsPage() {
   let pendingResets: { id: string; username: string; display_name: string; note: string | null; created_at: string }[] = [];
   let isShutdown = false;
   if (isAdmin) {
-    const { data: users } = await supabase
-      .from("profiles")
-      .select("id, email, username, display_name, is_admin, is_active, tags, group_id, created_at, invite_codes(source_label), groups(name)")
-      .order("created_at", { ascending: false });
-    userList = (users || []) as unknown as UserRow[];
-    const { data: codes } = await supabase
-      .from("invite_codes")
-      .select("*")
-      .order("created_at", { ascending: false });
-    codeList = (codes || []) as InviteCode[];
-    const { data: groups } = await supabase
-      .from("groups")
-      .select("*")
-      .order("created_at", { ascending: true });
-    groupList = (groups || []) as Group[];
-    const { data: tagsData } = await supabase.rpc("get_all_user_tags");
-    allTags = ((tagsData as string[]) || []).sort();
+    // 并行拉取管理数据
+    const [usersRes, codesRes, groupsRes, tagsRes, subRowsRes] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("id, email, username, display_name, is_admin, is_active, tags, group_id, created_at, invite_codes(source_label), groups(name)")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("invite_codes")
+        .select("*")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("groups")
+        .select("*")
+        .order("created_at", { ascending: true }),
+      supabase.rpc("get_all_user_tags"),
+      supabase.from("library_subscriptions").select("subscriber_id"),
+    ]);
+    userList = ((usersRes.data || []) as unknown as UserRow[]);
+    codeList = (codesRes.data || []) as InviteCode[];
+    groupList = (groupsRes.data || []) as Group[];
+    allTags = (((tagsRes.data as string[]) || [])).sort();
     for (const u of userList) {
       if (u.group_id) memberCounts[u.group_id] = (memberCounts[u.group_id] || 0) + 1;
     }
     // 各用户订阅的库个数
-    const { data: subRows } = await supabase
-      .from("library_subscriptions")
-      .select("subscriber_id");
-    for (const s of subRows || []) {
+    for (const s of subRowsRes.data || []) {
       const sid = (s as { subscriber_id: string }).subscriber_id;
       subCountsByUser[sid] = (subCountsByUser[sid] || 0) + 1;
     }
     const { getPendingPublishRequests } = await import("@/actions/libraries");
-    pendingPublish = await getPendingPublishRequests();
-    const { getPendingRegistrations } = await import("@/actions/admin");
-    pendingRegs = await getPendingRegistrations();
-    const { getPendingPasswordResets } = await import("@/actions/admin");
-    pendingResets = await getPendingPasswordResets();
-    const { getShutdownStatus } = await import("@/actions/admin");
-    isShutdown = await getShutdownStatus();
+    const { getPendingRegistrations, getPendingPasswordResets, getShutdownStatus } = await import("@/actions/admin");
+    const [pub, regs, resets, shutdown] = await Promise.all([
+      getPendingPublishRequests(),
+      getPendingRegistrations(),
+      getPendingPasswordResets(),
+      getShutdownStatus(),
+    ]);
+    pendingPublish = pub;
+    pendingRegs = regs;
+    pendingResets = resets;
+    isShutdown = shutdown;
   }
 
   return (

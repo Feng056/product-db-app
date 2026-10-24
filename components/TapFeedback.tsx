@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import { usePathname } from "next/navigation";
 import { lightTap } from "@/lib/haptics";
 
 /**
@@ -9,8 +8,6 @@ import { lightTap } from "@/lib/haptics";
  * 触发轻微震动（Android）+ CSS :active 缩放（全平台可见）。
  */
 export default function TapFeedback() {
-  const pathname = usePathname();
-
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       const t = e.target as HTMLElement | null;
@@ -20,7 +17,7 @@ export default function TapFeedback() {
     };
     document.addEventListener("click", onClick, true);
     return () => document.removeEventListener("click", onClick, true);
-  }, [pathname]);
+  }, []);
 
   return null;
 }

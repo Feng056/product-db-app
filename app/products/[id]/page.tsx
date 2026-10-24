@@ -51,25 +51,23 @@ export default async function ProductDetailPage({
   const product = data as Product;
   const isEdit = searchParams.edit === "1";
 
-  // 订阅副本只读
-  const { data: sub } = await supabase
-    .from("library_subscriptions")
-    .select("id")
-    .eq("copy_library_id", product.library_id)
-    .eq("subscriber_id", user!.id)
-    .limit(1);
+  // 并行：订阅只读校验 + 库时间显示设置
+  const [subRes, libRes] = await Promise.all([
+    supabase
+      .from("library_subscriptions")
+      .select("id")
+      .eq("copy_library_id", product.library_id)
+      .eq("subscriber_id", user!.id)
+      .limit(1),
+    product.library_id
+      ? supabase.from("libraries").select("time_display").eq("id", product.library_id).single()
+      : Promise.resolve({ data: null }),
+  ]);
+  const sub = subRes.data;
   const isReadOnly = !!sub && sub.length > 0;
 
   // 该产品所在库的时间显示设置（发布者控制）
-  let timeDisplay = "both";
-  if (product.library_id) {
-    const { data: libRow } = await supabase
-      .from("libraries")
-      .select("time_display")
-      .eq("id", product.library_id)
-      .single();
-    if (libRow?.time_display) timeDisplay = libRow.time_display;
-  }
+  const timeDisplay = (libRes.data as { time_display?: string } | null)?.time_display || "both";
   const showCreated = timeDisplay !== "updated";
   const showUpdated = timeDisplay !== "created";
 

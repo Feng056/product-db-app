@@ -14,38 +14,36 @@ export default async function WarehousePage() {
 
   const supabase = await createClient();
 
-  // 各库产品数
-  const { data: countsData } = await supabase
-    .from("products")
-    .select("library_id")
-    .eq("user_id", user!.id)
-    .in("library_id", libraries.map((l) => l.id));
+  // 并行：各库产品数 / 各库订阅者数 / 我订阅的副本 / 订阅广场
+  const [countsRes, subsRes, mySubsRes, publishedLibs] = await Promise.all([
+    supabase
+      .from("products")
+      .select("library_id")
+      .eq("user_id", user!.id)
+      .in("library_id", libraries.map((l) => l.id)),
+    supabase
+      .from("library_subscriptions")
+      .select("library_id")
+      .in("library_id", libraries.map((l) => l.id)),
+    supabase
+      .from("library_subscriptions")
+      .select("copy_library_id")
+      .eq("subscriber_id", user!.id),
+    getPublishedLibraries(),
+  ]);
   const counts: Record<string, number> = {};
-  for (const p of countsData || []) {
+  for (const p of countsRes.data || []) {
     const id = (p as { library_id: string }).library_id;
     counts[id] = (counts[id] || 0) + 1;
   }
 
-  // 各库订阅者数
-  const { data: subsData } = await supabase
-    .from("library_subscriptions")
-    .select("library_id")
-    .in("library_id", libraries.map((l) => l.id));
   const subCounts: Record<string, number> = {};
-  for (const s of subsData || []) {
+  for (const s of subsRes.data || []) {
     const id = (s as { library_id: string }).library_id;
     subCounts[id] = (subCounts[id] || 0) + 1;
   }
 
-  // 我订阅的副本库 id
-  const { data: mySubs } = await supabase
-    .from("library_subscriptions")
-    .select("copy_library_id")
-    .eq("subscriber_id", user!.id);
-  const subCopyIds = new Set((mySubs || []).map((s) => s.copy_library_id));
-
-  // 订阅广场数据
-  const publishedLibs = await getPublishedLibraries();
+  const subCopyIds = new Set((mySubsRes.data || []).map((s) => s.copy_library_id));
 
   return (
     <>
