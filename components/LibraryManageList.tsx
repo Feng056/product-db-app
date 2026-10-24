@@ -192,7 +192,7 @@ export default function LibraryManageList({
                     <button
                       onClick={() => onPush(lib.id, lib.name, subCounts[lib.id])}
                       disabled={pushingId === lib.id}
-                      className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+                      className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50"
                     >
                       {pushingId === lib.id ? "推送中…" : "📡 推送更新"}
                     </button>
@@ -200,7 +200,7 @@ export default function LibraryManageList({
                   {(!lib.publish_status || lib.publish_status === "private" || lib.publish_status === "rejected") && (
                     <button
                       onClick={() => onRequestPublish(lib.id, lib.name, false)}
-                      className="rounded-lg bg-green-50 px-3 py-1.5 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                      className="rounded-xl bg-green-50 px-5 py-2.5 text-sm text-green-700 dark:bg-green-900/30 dark:text-green-400"
                     >
                       发布
                     </button>
@@ -208,7 +208,7 @@ export default function LibraryManageList({
                   {lib.publish_status === "published" && (
                     <button
                       onClick={() => onRequestPublish(lib.id, lib.name, true)}
-                      className="rounded-lg bg-green-50 px-3 py-1.5 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                      className="rounded-xl bg-green-50 px-5 py-2.5 text-sm text-green-700 dark:bg-green-900/30 dark:text-green-400"
                     >
                       申请更新
                     </button>
@@ -216,20 +216,20 @@ export default function LibraryManageList({
                   {(lib.publish_status === "pending" || lib.publish_status === "published") && (
                     <button
                       onClick={() => onUnpublish(lib.id, lib.name, lib.publish_status === "published")}
-                      className="rounded-lg bg-amber-50 px-3 py-1.5 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                      className="rounded-xl bg-amber-50 px-5 py-2.5 text-sm text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
                     >
                       {lib.publish_status === "pending" ? "撤回申请" : "下架"}
                     </button>
                   )}
                   <button
                     onClick={() => setRenamingId(lib.id)}
-                    className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                    className="rounded-xl bg-gray-100 px-5 py-2.5 text-sm text-gray-600 dark:bg-gray-700 dark:text-gray-300"
                   >
                     改名
                   </button>
                   <button
                     onClick={() => onDelete(lib.id, lib.name)}
-                    className="rounded-lg bg-red-50 px-3 py-1.5 text-xs text-red-600 dark:bg-red-900/30 dark:text-red-400"
+                    className="rounded-xl bg-red-50 px-5 py-2.5 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400"
                   >
                     删除
                   </button>
