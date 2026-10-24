@@ -11,6 +11,7 @@ export default function RegisterPage({
   searchParams: { code?: string };
 }) {
   const [error, setError] = useState<string | null>(null);
+  const [noCode, setNoCode] = useState(false);
   const presetCode = (searchParams.code || "").toUpperCase();
 
   async function onSubmit(formData: FormData) {
@@ -25,7 +26,9 @@ export default function RegisterPage({
       <div className="mt-10 text-center">
         <div className="text-5xl">📦</div>
         <h1 className="mt-3 text-2xl font-bold">注册产品资料库</h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 ">需要有效的邀请码才能注册</p>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 ">
+          {presetCode ? "邀请码已填入，直接注册" : "有邀请码直接通过，无邀请码需人工审核"}
+        </p>
       </div>
 
       <form action={onSubmit} className="mt-8 space-y-4">
@@ -42,20 +45,50 @@ export default function RegisterPage({
           <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">密码（至少 6 位）</label>
           <input name="password" type="password" required minLength={6} placeholder="请设置密码" className={inputCls} />
         </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-            邀请码 <span className="text-red-500">*</span>
-          </label>
-          <input
-            name="inviteCode"
-            required
-            defaultValue={presetCode}
-            placeholder="如 INVITE-A3F9K2"
-            autoCapitalize="characters"
-            className={`${inputCls} uppercase`}
-          />
-          <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">请向管理员索取邀请码</p>
-        </div>
+
+        {!noCode ? (
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              邀请码
+            </label>
+            <input
+              name="inviteCode"
+              defaultValue={presetCode}
+              placeholder="如 INVITE-A3F9K2"
+              autoCapitalize="characters"
+              className={`${inputCls} uppercase`}
+            />
+            <button
+              type="button"
+              onClick={() => setNoCode(true)}
+              className="mt-2 text-xs text-blue-600"
+            >
+              没有邀请码？填写申请说明走人工审核 →
+            </button>
+          </div>
+        ) : (
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              申请说明 <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              name="regNote"
+              required
+              minLength={5}
+              maxLength={500}
+              rows={4}
+              placeholder="请说明你的身份和用途，如：我是XX公司的采购，需要查看产品资料"
+              className={inputCls}
+            />
+            <button
+              type="button"
+              onClick={() => setNoCode(false)}
+              className="mt-2 text-xs text-blue-600"
+            >
+              ← 我有邀请码
+            </button>
+          </div>
+        )}
 
         {error && (
           <div className="rounded-xl bg-red-50 dark:bg-red-950 px-4 py-3 text-sm text-red-600 dark:text-red-400">{error}</div>
@@ -65,7 +98,7 @@ export default function RegisterPage({
           type="submit"
           className="w-full rounded-2xl bg-blue-600 py-3.5 text-base font-semibold text-white"
         >
-          注册
+          {noCode ? "提交审核" : "注册"}
         </button>
       </form>
 

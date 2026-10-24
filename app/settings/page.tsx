@@ -11,6 +11,7 @@ import CreateInviteCodeForm from "@/components/CreateInviteCodeForm";
 import ThemeSelector from "@/components/ThemeSelector";
 import GroupManager from "@/components/GroupManager";
 import PublishReview from "@/components/PublishReview";
+import RegistrationReview from "@/components/RegistrationReview";
 import UserManager from "@/components/UserManager";
 import InviteCodeQR from "@/components/InviteCodeQR";
 import { formatDateTime } from "@/lib/utils";
@@ -66,7 +67,7 @@ export default async function SettingsPage({
   const isAdmin = !!profile?.is_admin;
 
   const supabase = await createClient();
-  const tab = searchParams.tab === "codes" ? "codes" : searchParams.tab === "groups" ? "groups" : searchParams.tab === "publish" ? "publish" : "users";
+  const tab = searchParams.tab === "codes" ? "codes" : searchParams.tab === "groups" ? "groups" : searchParams.tab === "publish" ? "publish" : searchParams.tab === "regs" ? "regs" : "users";
 
   // 头像公开链接
   const avatarPath = (profile as { avatar_path?: string } | null)?.avatar_path || "";
@@ -85,6 +86,7 @@ export default async function SettingsPage({
   let allTags: string[] = [];
   let memberCounts: Record<string, number> = {};
   let pendingPublish: { id: string; name: string; owner_name: string; product_count: number; publish_requested_at: string }[] = [];
+  let pendingRegs: { id: string; username: string; display_name: string; registration_note: string; created_at: string }[] = [];
   if (isAdmin) {
     const { data: users } = await supabase
       .from("profiles")
@@ -108,6 +110,8 @@ export default async function SettingsPage({
     }
     const { getPendingPublishRequests } = await import("@/actions/libraries");
     pendingPublish = await getPendingPublishRequests();
+    const { getPendingRegistrations } = await import("@/actions/admin");
+    pendingRegs = await getPendingRegistrations();
   }
 
   return (
@@ -184,10 +188,10 @@ export default async function SettingsPage({
           <section className="mt-6">
             <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400 ">管理</h2>
 
-            <div className="grid grid-cols-4 gap-2 rounded-2xl bg-gray-100 dark:bg-gray-800 p-1">
+            <div className="grid grid-cols-5 gap-1 rounded-2xl bg-gray-100 dark:bg-gray-800 p-1">
               <Link
                 href="/settings?tab=users"
-                className={`rounded-xl py-2 text-center text-sm font-medium ${
+                className={`rounded-xl py-2 text-center text-xs font-medium ${
                   tab === "users" ? "bg-white dark:bg-gray-900 shadow-sm" : "text-gray-500 dark:text-gray-400"
                 }`}
               >
@@ -195,7 +199,7 @@ export default async function SettingsPage({
               </Link>
               <Link
                 href="/settings?tab=groups"
-                className={`rounded-xl py-2 text-center text-sm font-medium ${
+                className={`rounded-xl py-2 text-center text-xs font-medium ${
                   tab === "groups" ? "bg-white dark:bg-gray-900 shadow-sm" : "text-gray-500 dark:text-gray-400"
                 }`}
               >
@@ -203,7 +207,7 @@ export default async function SettingsPage({
               </Link>
               <Link
                 href="/settings?tab=codes"
-                className={`rounded-xl py-2 text-center text-sm font-medium ${
+                className={`rounded-xl py-2 text-center text-xs font-medium ${
                   tab === "codes" ? "bg-white dark:bg-gray-900 shadow-sm" : "text-gray-500 dark:text-gray-400"
                 }`}
               >
@@ -211,11 +215,19 @@ export default async function SettingsPage({
               </Link>
               <Link
                 href="/settings?tab=publish"
-                className={`rounded-xl py-2 text-center text-sm font-medium ${
+                className={`rounded-xl py-2 text-center text-xs font-medium ${
                   tab === "publish" ? "bg-white dark:bg-gray-900 shadow-sm" : "text-gray-500 dark:text-gray-400"
                 }`}
               >
                 发布审核
+              </Link>
+              <Link
+                href="/settings?tab=regs"
+                className={`rounded-xl py-2 text-center text-xs font-medium ${
+                  tab === "regs" ? "bg-white dark:bg-gray-900 shadow-sm" : "text-gray-500 dark:text-gray-400"
+                }`}
+              >
+                注册审核
               </Link>
             </div>
 
@@ -230,6 +242,8 @@ export default async function SettingsPage({
               <GroupManager groups={groupList} memberCounts={memberCounts} />
             ) : tab === "publish" ? (
               <PublishReview requests={pendingPublish} />
+            ) : tab === "regs" ? (
+              <RegistrationReview requests={pendingRegs} />
             ) : (
               <>
                 <div className="mt-3">

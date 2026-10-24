@@ -26,9 +26,10 @@ export async function signUp(formData: FormData): Promise<ActionResult> {
   const inviteCode = String(formData.get("inviteCode") || "")
     .trim()
     .toUpperCase();
+  const regNote = String(formData.get("regNote") || "").trim();
 
-  if (!account || !password || !inviteCode) {
-    return { error: "请填写账号、密码和邀请码" };
+  if (!account || !password) {
+    return { error: "请填写账号和密码" };
   }
   if (!isValidAccount(account)) {
     return { error: "账号为 3-20 位字母、数字、下划线、连字符或点" };
@@ -43,17 +44,29 @@ export async function signUp(formData: FormData): Promise<ActionResult> {
   const email = accountToEmail(account);
   const supabase = await createClient();
 
-  // 1. 先校验邀请码（SECURITY DEFINER 函数，匿名可调用）
-  const { data: check } = await supabase.rpc("check_invite_code", {
-    p_code: inviteCode,
-  });
-  const valid = (check as { valid?: boolean } | null)?.valid;
-  const checkMsg = (check as { message?: string } | null)?.message;
-  if (!valid) {
-    return { error: checkMsg || "邀请码无效" };
+  // 有邀请码：校验并自动通过
+  let useInvite = false;
+  if (inviteCode) {
+    const { data: check } = await supabase.rpc("check_invite_code", {
+      p_code: inviteCode,
+    });
+    const valid = (check as { valid?: boolean } | null)?.valid;
+    const checkMsg = (check as { message?: string } | null)?.message;
+    if (!valid) {
+      return { error: checkMsg || "邀请码无效" };
+    }
+    useInvite = true;
+  } else {
+    // 无邀请码：需要填写申请说明，进入人工审核
+    if (!regNote) {
+      return { error: "请填写申请说明，或提供邀请码" };
+    }
+    if (regNote.length < 5) {
+      return { error: "申请说明至少 5 个字" };
+    }
   }
 
-  // 2. 创建 Auth 用户
+  // 创建 Auth 用户
   const { error: signUpError } = await supabase.auth.signUp({
     email,
     password,
@@ -62,19 +75,37 @@ export async function signUp(formData: FormData): Promise<ActionResult> {
     return { error: `注册失败：${signUpError.message}` };
   }
 
-  // 3. 核销邀请码（used_count+1，并记录到 profiles，含昵称）
-  const { data: redeem } = await supabase.rpc("redeem_invite_code", {
-    p_code: inviteCode,
-    p_email: email,
-    p_display_name: displayName,
-  });
-  const ok = (redeem as { ok?: boolean } | null)?.ok;
-  if (!ok) {
-    const msg = (redeem as { message?: string } | null)?.message;
-    return { error: `账号已创建，但邀请码核销失败：${msg || "未知错误"}，请联系管理员` };
+  if (useInvite) {
+    // 核销邀请码（used_count+1，并记录到 profiles，含昵称）
+    const { data: redeem } = await supabase.rpc("redeem_invite_code", {
+      p_code: inviteCode,
+      p_email: email,
+      p_display_name: displayName,
+    });
+    const ok = (redeem as { ok?: boolean } | null)?.ok;
+    if (!ok) {
+      const msg = (redeem as { message?: string } | null)?.message;
+      return { error: `账号已创建，但邀请码核销失败：${msg || "未知错误"}，请联系管理员` };
+    }
+    redirect("/products");
+  } else {
+    // 无邀请码：写入申请说明，状态待审核
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      await supabase
+        .from("profiles")
+        .update({
+          display_name: displayName.slice(0, 20),
+          registration_status: "pending",
+          registration_note: regNote.slice(0, 500),
+        })
+        .eq("id", user.id);
+    }
+    await supabase.auth.signOut();
+    redirect("/login?pending=1");
   }
-
-  redirect("/products");
 }
 
 /** 登录：支持账号或邮箱 */
@@ -105,20 +136,29 @@ export async function signIn(formData: FormData): Promise<ActionResult> {
     return { error: "账号或密码错误" };
   }
 
-  // 检查账号 / 分组是否被停用
+  // 检查账号 / 分组是否被停用，以及注册审核状态
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("is_active, group_id, groups(is_active)")
+      .select("is_active, group_id, registration_status, groups(is_active)")
       .eq("id", user.id)
       .single();
     const groupActive = (profile as { groups?: { is_active?: boolean } | null } | null)?.groups?.is_active;
     if (profile && (!profile.is_active || (profile.group_id && groupActive === false))) {
       await supabase.auth.signOut();
       return { error: "该账号已被停用，请联系管理员" };
+    }
+    const regStatus = (profile as { registration_status?: string } | null)?.registration_status;
+    if (regStatus === "pending") {
+      await supabase.auth.signOut();
+      return { error: "账号正在审核中，请等待管理员通过" };
+    }
+    if (regStatus === "rejected") {
+      await supabase.auth.signOut();
+      return { error: "注册申请未通过，请联系管理员" };
     }
   }
   // 只允许站内跳转，防止开放重定向

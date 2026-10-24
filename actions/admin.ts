@@ -173,3 +173,48 @@ export async function setUserTags(
   revalidatePath("/settings");
   return {};
 }
+
+/* ================= 注册审核 ================= */
+
+/** 获取待审核的注册申请 */
+export async function getPendingRegistrations(): Promise<
+  { id: string; username: string; display_name: string; registration_note: string; created_at: string }[]
+> {
+  const { supabase } = await requireAdmin();
+  const { data } = await supabase
+    .from("profiles")
+    .select("id, username, display_name, registration_note, created_at")
+    .eq("registration_status", "pending")
+    .order("created_at", { ascending: true });
+  return (data || []) as {
+    id: string;
+    username: string;
+    display_name: string;
+    registration_note: string;
+    created_at: string;
+  }[];
+}
+
+/** 通过注册申请 */
+export async function approveRegistration(userId: string): Promise<ActionResult> {
+  const { supabase } = await requireAdmin();
+  const { error } = await supabase
+    .from("profiles")
+    .update({ registration_status: "approved" })
+    .eq("id", userId);
+  if (error) return { error: error.message };
+  revalidatePath("/settings");
+  return {};
+}
+
+/** 驳回注册申请 */
+export async function rejectRegistration(userId: string): Promise<ActionResult> {
+  const { supabase } = await requireAdmin();
+  const { error } = await supabase
+    .from("profiles")
+    .update({ registration_status: "rejected" })
+    .eq("id", userId);
+  if (error) return { error: error.message };
+  revalidatePath("/settings");
+  return {};
+}

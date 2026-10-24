@@ -43,6 +43,8 @@ export type Profile = {
   group_id: string | null;
   is_active: boolean;
   tags: string[];
+  registration_status?: string;
+  registration_note?: string | null;
   created_at: string;
   invite_codes?: { source_label: string } | null;
 };

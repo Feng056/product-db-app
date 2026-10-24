@@ -8,11 +8,12 @@ import { inputCls } from "@/components/SpecsEditor";
 export default function LoginPage({
   searchParams,
 }: {
-  searchParams: { next?: string; disabled?: string };
+  searchParams: { next?: string; disabled?: string; pending?: string };
 }) {
   const [error, setError] = useState<string | null>(null);
   const next = searchParams.next || "";
   const disabled = searchParams.disabled === "1";
+  const pending = searchParams.pending === "1";
 
   async function onSubmit(formData: FormData) {
     setError(null);
@@ -32,6 +33,11 @@ export default function LoginPage({
         {disabled && (
           <div className="rounded-xl bg-orange-50 dark:bg-orange-950 px-4 py-3 text-sm text-orange-600 dark:text-orange-400">
             该账号已被停用，请联系管理员
+          </div>
+        )}
+        {pending && (
+          <div className="rounded-xl bg-blue-50 dark:bg-blue-950 px-4 py-3 text-sm text-blue-600 dark:text-blue-400">
+            申请已提交，请等待管理员审核通过后再登录
           </div>
         )}
         <div>
