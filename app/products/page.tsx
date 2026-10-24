@@ -334,9 +334,12 @@ export default async function ProductsPage({ searchParams }: Props) {
           <h1 className="max-w-[60%] truncate text-xl font-bold">
             {libraries.find((l) => l.id === currentId)?.name || "产品库"}
             {isSubCopy && (
-              <span className="ml-2 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-950 dark:text-blue-300">
-                订阅
-              </span>
+              <SubscriptionActions
+                libraryId={currentId}
+                libraryName={
+                  libraries.find((l) => l.id === currentId)?.name || "产品库"
+                }
+              />
             )}
           </h1>
           {headerDisplay === "avatar" &&
@@ -370,9 +373,6 @@ export default async function ProductsPage({ searchParams }: Props) {
           subCopyIds={subCopyIds}
           updatedCopyIds={updatedCopyIds}
         />
-
-        {/* 订阅副本：刷新 / 取消订阅 */}
-        {isSubCopy && <SubscriptionActions libraryId={currentId} />}
 
         {/* 统一筛选：分类（单选）+ 标签（多选），默认显示一排 */}
         {(categories.length > 0 || tags.length > 0) && (

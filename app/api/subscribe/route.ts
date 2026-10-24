@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { copyProductsToLibrary } from "@/lib/copy-products";
+import { prependLibraryOrder } from "@/lib/library-order";
 
 export const dynamic = "force-dynamic";
 
@@ -103,6 +104,8 @@ export async function POST(req: NextRequest) {
           copy_library_id: newLib.id,
           subscriber_id: user.id,
         });
+        // 新订阅的库排到显示顺序第一位，返回首页默认就是它
+        await prependLibraryOrder(supabase, user.id, [newLib.id]);
 
         revalidatePath("/products");
         send({ type: "done", libraryId: newLib.id });

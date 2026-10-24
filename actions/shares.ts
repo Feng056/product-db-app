@@ -6,6 +6,7 @@ import { randomBytes } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import type { SpecItem } from "@/lib/types";
 import { copyProductsToLibrary } from "@/lib/copy-products";
+import { prependLibraryOrder } from "@/lib/library-order";
 
 type ActionResult = { error?: string; token?: string };
 
@@ -183,6 +184,10 @@ export async function subscribeToLibraries(
     libraryIds.push(newLib.id);
   }
 
+  // 新订阅的库排到显示顺序第一位，返回首页默认就是它
+  if (libraryIds.length > 0) {
+    await prependLibraryOrder(supabase, user.id, libraryIds);
+  }
   revalidatePath("/products");
   return { subscribed, libraryIds };
 }

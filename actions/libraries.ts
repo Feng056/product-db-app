@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { normalizeLibraryName } from "@/lib/utils";
+import { sortLibrariesByOrder } from "@/lib/library-order";
 import type { Library } from "@/lib/types";
 
 type ActionResult = { error?: string; message?: string };
@@ -17,7 +18,7 @@ async function requireUser() {
   return { supabase, user };
 }
 
-/** 确保用户至少拥有一个产品库；返回该用户全部产品库（按创建时间升序） */
+/** 确保用户至少拥有一个产品库；返回该用户全部产品库（按用户自定义顺序，未设置的按创建时间升序） */
 export async function ensureDefaultLibrary(): Promise<Library[]> {
   const { supabase, user } = await requireUser();
 
@@ -27,7 +28,15 @@ export async function ensureDefaultLibrary(): Promise<Library[]> {
     .eq("user_id", user.id)
     .order("created_at", { ascending: true });
   const list = (data || []) as Library[];
-  if (list.length > 0) return list;
+  if (list.length > 0) {
+    // 用户自定义顺序（列不存在时查询报错，静默回退到创建时间顺序）
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("library_order")
+      .eq("id", user.id)
+      .maybeSingle();
+    return sortLibrariesByOrder(list, (prof?.library_order as string[] | null) || null);
+  }
 
   const { data: created, error } = await supabase
     .from("libraries")
@@ -36,6 +45,21 @@ export async function ensureDefaultLibrary(): Promise<Library[]> {
     .single();
   if (error || !created) return list;
   return [created as Library];
+}
+
+/** 保存用户自定义的产品库显示顺序（仅限自己的库 id） */
+export async function saveLibraryOrder(ids: string[]): Promise<{ ok: boolean; message?: string }> {
+  const { supabase, user } = await requireUser();
+  const { data } = await supabase.from("libraries").select("id").eq("user_id", user.id);
+  const mine = new Set((data || []).map((d) => d.id));
+  const clean = ids.filter((id) => mine.has(id));
+  const { error } = await supabase
+    .from("profiles")
+    .update({ library_order: clean })
+    .eq("id", user.id);
+  if (error) return { ok: false, message: "保存顺序失败" };
+  revalidatePath("/products");
+  return { ok: true };
 }
 
 /** 检查库名是否与已发布的公共库重名（规范化后比对；排除自己的库） */

@@ -3,6 +3,7 @@ import "./globals.css";
 import ThemeProvider from "@/components/ThemeProvider";
 import ShutdownBanner from "@/components/ShutdownBanner";
 import AutoExportCheck from "@/components/AutoExportCheck";
+import SubscribeJobIndicator from "@/components/SubscribeJobIndicator";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import RouteProgress from "@/components/RouteProgress";
 import TapFeedback from "@/components/TapFeedback";
@@ -49,6 +50,7 @@ export default function RootLayout({
         <ThemeProvider>
           <AutoExportCheck />
           <ShutdownBanner />
+          <SubscribeJobIndicator />
           {children}
         </ThemeProvider>
         <ServiceWorkerRegister />
