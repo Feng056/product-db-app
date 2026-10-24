@@ -29,3 +29,27 @@ body {
 .page-container {
   @apply mx-auto w-full max-w-md px-4 pb-28 pt-5;
 }
+
+/* 顶部加载进度条：不定式滑动 */
+@keyframes route-progress-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
+.route-progress-bar {
+  animation: route-progress-slide 0.9s ease-in-out infinite;
+}
+
+/* 轻触视觉反馈：所有可点击元素按下时轻微缩小 */
+button,
+a {
+  transition: transform 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+button:active,
+a:active {
+  transform: scale(0.96);
+}

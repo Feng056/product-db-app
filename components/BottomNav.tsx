@@ -1,7 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 const TABS = [
   { href: "/products", label: "产品库", icon: "📦" },
@@ -19,10 +20,33 @@ export default function BottomNav({
   lib?: string;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const withLib = (href: string) =>
     lib && (href === "/products/new" || href === "/import")
       ? `${href}?lib=${lib}`
       : href;
+
+  // 后台预加载其他三个底部菜单，切换时不再卡顿
+  useEffect(() => {
+    const t = setTimeout(() => {
+      for (const tab of TABS) {
+        const href = withLib(tab.href);
+        const isCurrent =
+          tab.href === "/products"
+            ? pathname === "/products"
+            : pathname.startsWith(tab.href);
+        if (!isCurrent) {
+          try {
+            router.prefetch(href);
+          } catch {
+            /* 忽略 */
+          }
+        }
+      }
+    }, 1200);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/95 backdrop-blur">
