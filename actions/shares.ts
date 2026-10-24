@@ -36,7 +36,7 @@ export async function createLibraryShare(
   const token = randomBytes(12).toString("base64url");
   const { data, error } = await supabase
     .from("library_shares")
-    .insert({ library_ids: ids, user_id: user.id, token })
+    .insert({ library_id: ids[0], library_ids: ids, user_id: user.id, token })
     .select("id, token")
     .single();
   if (error) return { error: `创建分享失败：${error.message}` };
