@@ -7,6 +7,14 @@ import { formatDateTime } from "@/lib/utils";
 import type { InviteCode, Group } from "@/lib/types";
 
 function ToggleButton({ code }: { code: InviteCode }) {
+  // 用完的码直接显示已使用，不再可点（反正 check_invite_code 也不会再让它通过）
+  if (code.used_count >= code.max_uses) {
+    return (
+      <span className="rounded-full bg-gray-100 dark:bg-gray-800 px-3 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">
+        已使用
+      </span>
+    );
+  }
   return (
     <button
       onClick={async () => {
