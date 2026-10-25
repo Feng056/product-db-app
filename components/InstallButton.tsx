@@ -16,6 +16,7 @@ type InstallPromptEvent = Event & {
 export default function InstallButton({ showWhenInstalled = false }: { showWhenInstalled?: boolean }) {
   const [deferred, setDeferred] = useState<InstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
+  const [manualAdded, setManualAdded] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [showIOSHelp, setShowIOSHelp] = useState(false);
   const [msg, setMsg] = useState("");
@@ -24,7 +25,15 @@ export default function InstallButton({ showWhenInstalled = false }: { showWhenI
     const standalone =
       window.matchMedia("(display-mode: standalone)").matches ||
       (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
-    setInstalled(standalone);
+    // 浏览器无法检测“已存图标但用浏览器打开”的情况，只能靠用户手动确认
+    let manual = false;
+    try {
+      manual = window.localStorage.getItem("pwa-added-manually") === "1";
+    } catch {
+      manual = false;
+    }
+    setManualAdded(manual);
+    setInstalled(standalone || manual);
     setIsIOS(/iphone|ipad|ipod/i.test(window.navigator.userAgent) && !standalone);
     const onPrompt = (e: Event) => {
       e.preventDefault();
@@ -62,6 +71,30 @@ export default function InstallButton({ showWhenInstalled = false }: { showWhenI
     setMsg("请在手机浏览器中打开本页，再用浏览器的安装 / 添加到主屏幕功能");
   }
 
+  function onManualAdded() {
+    try {
+      window.localStorage.setItem("pwa-added-manually", "1");
+    } catch {
+      /* 忽略 */
+    }
+    setManualAdded(true);
+    setShowIOSHelp(false);
+    setInstalled(true);
+  }
+
+  function onClearManual() {
+    try {
+      window.localStorage.removeItem("pwa-added-manually");
+    } catch {
+      /* 忽略 */
+    }
+    const standalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+    setManualAdded(false);
+    setInstalled(standalone);
+  }
+
   if (showWhenInstalled ? !installed : installed) return null;
 
   return (
@@ -83,13 +116,31 @@ export default function InstallButton({ showWhenInstalled = false }: { showWhenI
         </button>
       </div>
       {showIOSHelp && isIOS && (
-        <ol className="mt-3 list-inside list-decimal space-y-1 text-xs text-gray-500 dark:text-gray-400">
-          <li>点浏览器底部的分享按钮</li>
-          <li>选「添加到主屏幕」</li>
-          <li>点右上角「添加」，图标就出现在桌面了</li>
-        </ol>
+        <>
+          <ol className="mt-3 list-inside list-decimal space-y-1 text-xs text-gray-500 dark:text-gray-400">
+            <li>点浏览器底部的分享按钮</li>
+            <li>选「添加到主屏幕」</li>
+            <li>点右上角「添加」，图标就出现在桌面了</li>
+          </ol>
+          <button
+            type="button"
+            onClick={onManualAdded}
+            className="mt-3 w-full rounded-xl bg-gray-100 py-2.5 text-sm font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+          >
+            我已添加，不再显示
+          </button>
+        </>
       )}
       {msg && <p className="mt-2 text-xs text-gray-400">{msg}</p>}
+      {manualAdded && (
+        <button
+          type="button"
+          onClick={onClearManual}
+          className="mt-2 w-full text-center text-xs text-gray-400"
+        >
+          还没添加？点此重新显示
+        </button>
+      )}
     </div>
   );
 }

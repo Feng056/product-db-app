@@ -116,7 +116,7 @@ export default async function ProductDetailPage({
               编辑
             </Link>
           )}
-          {isSubCopy && (
+          {isSubCopy && coBadge && (
             <span
               className={`rounded-full px-3 py-1 text-xs font-medium ${
                 coBadge === "共同创作 · 可编辑"
@@ -126,7 +126,7 @@ export default async function ProductDetailPage({
                     : "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
               }`}
             >
-              {coBadge || "订阅内容 · 只读"}
+              {coBadge}
             </span>
           )}
         </div>

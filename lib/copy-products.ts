@@ -226,6 +226,12 @@ export async function syncProductsToLibrary(
       affected++;
       continue;
     }
+    if (matchedSrc.has(sp.id)) {
+      // 同一源产品在副本里出现多次（旧全量同步重复插入导致）→ 删掉多余的重复行
+      await supabase.from("products").delete().eq("id", cp.id).eq("user_id", targetUserId);
+      affected++;
+      continue;
+    }
     matchedSrc.add(sp.id);
     const patch: {
       name?: string;
