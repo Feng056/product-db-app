@@ -47,7 +47,7 @@ export default async function SettingsPage() {
     const [usersRes, codesRes, groupsRes, tagsRes, subRowsRes, libsRes] = await Promise.all([
       supabase
         .from("profiles")
-        .select("id, email, username, display_name, is_admin, is_active, tags, group_id, created_at, invite_codes(source_label), groups(name)")
+        .select("id, email, username, display_name, is_admin, is_active, tags, group_id, invite_code_id, created_at")
         .order("created_at", { ascending: false }),
       supabase
         .from("invite_codes")
@@ -61,8 +61,18 @@ export default async function SettingsPage() {
       supabase.from("library_subscriptions").select("library_id, subscriber_id"),
       supabase.from("libraries").select("id, user_id"),
     ]);
-    userList = ((usersRes.data || []) as unknown as UserRow[]);
     codeList = (codesRes.data || []) as InviteCode[];
+    // 来源标注不在查询里联表（profiles.group_id 没有外键时联表会让整条查询报错），
+    // 改为用已取到的邀请码列表在 JS 里拼；分组名由 UserManager 用分组列表兜底
+    const labelByCodeId = new Map<string, string>();
+    for (const c of codeList) {
+      labelByCodeId.set(c.id, c.source_label);
+    }
+    userList = ((usersRes.data || []) as unknown as (Profile & { invite_code_id: string | null })[]).map((u) => ({
+      ...u,
+      invite_codes: u.invite_code_id ? { source_label: labelByCodeId.get(u.invite_code_id) || "" } : null,
+      groups: null,
+    }));
     groupList = (groupsRes.data || []) as Group[];
     allTags = (((tagsRes.data as string[]) || [])).sort();
     for (const u of userList) {
