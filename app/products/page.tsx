@@ -26,18 +26,8 @@ export default async function ProductsPage({ searchParams }: Props) {
 
   // 产品库：无则自动建默认库；lib 参数非法则回退到第一个
   const libraries = await ensureDefaultLibrary();
-  // 首页切换条：show_on_home=false 的库不显示（字段缺失时默认显示）；全隐藏时回退到全部，避免首页无库可选
-  const homeLibraries = libraries.filter((l) => l.show_on_home !== false);
-  const displayLibraries = homeLibraries.length > 0 ? homeLibraries : libraries;
-  const currentId =
-    libraries.find((l) => l.id === searchParams.lib)?.id ?? displayLibraries[0].id;
-  // 直达链接打开了被隐藏的库时，切换条里仍保留当前库，保证看得出在哪个库
-  const currentLib = libraries.find((l) => l.id === currentId)!;
-  const barLibraries = displayLibraries.some((l) => l.id === currentId)
-    ? displayLibraries
-    : [...displayLibraries, currentLib];
 
-  // 是否为订阅副本（只读）+ 所有订阅副本（并行查询）
+  // 是否为订阅副本（只读）+ 所有订阅副本
   const { data: allSubs } = await supabase
     .from("library_subscriptions")
     .select("copy_library_id, has_update")
@@ -48,6 +38,41 @@ export default async function ProductsPage({ searchParams }: Props) {
       .filter((s) => s.has_update)
       .map((s) => s.copy_library_id)
   );
+
+  // 首页切换条：订阅库始终显示；自建库 show_on_home=false 的不显示（字段缺失时默认显示）
+  // 隐藏就是隐藏：全藏了也不回退成全部，避免越藏越多
+  const homeLibraries = libraries.filter(
+    (l) => l.show_on_home !== false || subCopyIds.has(l.id)
+  );
+  const currentId =
+    libraries.find((l) => l.id === searchParams.lib)?.id ?? homeLibraries[0]?.id;
+
+  // 全藏了：给一句提示 + 去仓库打开的入口
+  if (!currentId) {
+    return (
+      <>
+        <main className="page-container">
+          <div className="rounded-2xl bg-white dark:bg-gray-900 p-10 text-center text-sm text-gray-400 dark:text-gray-500">
+            <div className="text-4xl">📦</div>
+            <p className="mt-3">首页没有显示的库，去仓库管理里重新打开</p>
+            <Link
+              href="/warehouse"
+              className="mt-4 inline-block rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white"
+            >
+              去仓库管理
+            </Link>
+          </div>
+        </main>
+        <BottomNav isAdmin={profile?.is_admin} />
+      </>
+    );
+  }
+
+  // 直达链接打开了被隐藏的库时，切换条里仍保留当前库，保证看得出在哪个库
+  const currentLib = libraries.find((l) => l.id === currentId)!;
+  const barLibraries = homeLibraries.some((l) => l.id === currentId)
+    ? homeLibraries
+    : [...homeLibraries, currentLib];
 
   // 如果当前打开的订阅库有更新通知，清除它（用户已看到）
   if (updatedCopyIds.has(currentId)) {

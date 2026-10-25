@@ -448,7 +448,7 @@ function OrderSection({
   return (
     <div className="mb-4 rounded-2xl bg-white p-3 dark:bg-gray-900">
       <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">首页显示顺序</div>
-      <p className="mt-0.5 text-xs text-gray-400">排第一位的库为首页默认展示，点按钮调整顺序；点显示中/已隐藏可开关首页显示</p>
+      <p className="mt-0.5 text-xs text-gray-400">排第一位的库为首页默认展示，点按钮调整顺序；自建库可开关首页显示，订阅库始终显示</p>
       <div className="mt-2 space-y-1.5">
         {ordered.map((lib, i) => (
           <div
@@ -467,16 +467,19 @@ function OrderSection({
                 默认展示
               </span>
             )}
-            <button
-              onClick={() => onToggleShowOnHome(lib.id, lib.show_on_home === false)}
-              className={`shrink-0 rounded-full px-2.5 py-1.5 text-xs font-medium ${
-                lib.show_on_home !== false
-                  ? "bg-green-600 text-white"
-                  : "bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-              }`}
-            >
-              {lib.show_on_home !== false ? "显示中" : "已隐藏"}
-            </button>
+            {/* 订阅库不给开关，始终显示 */}
+            {!subCopyIds.has(lib.id) && (
+              <button
+                onClick={() => onToggleShowOnHome(lib.id, lib.show_on_home === false)}
+                className={`shrink-0 rounded-full px-2.5 py-1.5 text-xs font-medium ${
+                  lib.show_on_home !== false
+                    ? "bg-green-600 text-white"
+                    : "bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                }`}
+              >
+                {lib.show_on_home !== false ? "显示中" : "已隐藏"}
+              </button>
+            )}
             <button disabled={busy || i === 0} onClick={() => move(lib.id, -1)} className={btn}>
               ↑
             </button>
