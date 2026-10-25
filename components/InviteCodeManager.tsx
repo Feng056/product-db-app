@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import CreateInviteCodeForm from "@/components/CreateInviteCodeForm";
 import InviteCodeQR from "@/components/InviteCodeQR";
-import { toggleInviteCode, deleteInviteCode, updateInviteCodeLabel } from "@/actions/admin";
+import { toggleInviteCode, deleteInviteCode } from "@/actions/admin";
 import { formatDateTime } from "@/lib/utils";
 import type { InviteCode, Group } from "@/lib/types";
 
@@ -46,21 +45,6 @@ export default function InviteCodeManager({
   codes: InviteCode[];
   groups: Group[];
 }) {
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  async function onSaveLabel(id: string) {
-    setBusy(true);
-    const res = await updateInviteCodeLabel(id, editValue);
-    setBusy(false);
-    if (res.error) {
-      alert(res.error);
-    } else {
-      setEditingId(null);
-    }
-  }
-
   return (
     <>
       <div className="mt-3">
@@ -80,49 +64,16 @@ export default function InviteCodeManager({
               </code>
               <div className="flex shrink-0 items-center gap-2">
                 <InviteCodeQR code={c.code} />
-                <button
-                  onClick={() => {
-                    setEditingId(c.id);
-                    setEditValue(c.source_label);
-                  }}
-                  className="text-xs text-blue-600"
-                >
-                  改名
-                </button>
                 <ToggleButton code={c} />
                 <DeleteCodeButton id={c.id} />
               </div>
             </div>
-            {editingId === c.id ? (
-              <div className="mt-2 flex items-center gap-2">
-                <input
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  maxLength={20}
-                  className="min-w-0 flex-1 rounded-lg border border-gray-200 px-2 py-1.5 text-xs outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-800"
-                />
-                <button
-                  onClick={() => onSaveLabel(c.id)}
-                  disabled={busy}
-                  className="shrink-0 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
-                >
-                  保存
-                </button>
-                <button
-                  onClick={() => setEditingId(null)}
-                  className="shrink-0 text-xs text-gray-500"
-                >
-                  取消
-                </button>
-              </div>
-            ) : (
-              <div className="mt-1 text-xs text-gray-500 dark:text-gray-400 ">
-                来源：{(c as { source_label?: string }).source_label} · 已用 {c.used_count}/{c.max_uses} 次
-                {c.group_id && groups.find((g) => g.id === c.group_id)
-                  ? ` · 分组：${groups.find((g) => g.id === c.group_id)!.name}`
-                  : ""}
-              </div>
-            )}
+            <div className="mt-1 text-xs text-gray-500 dark:text-gray-400 ">
+              来源：{(c as { source_label?: string }).source_label} · 已用 {c.used_count}/{c.max_uses} 次
+              {c.group_id && groups.find((g) => g.id === c.group_id)
+                ? ` · 分组：${groups.find((g) => g.id === c.group_id)!.name}`
+                : ""}
+            </div>
             <div className="text-xs text-gray-400 dark:text-gray-500">
               创建于 {formatDateTime(c.created_at)}
             </div>
