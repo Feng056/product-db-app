@@ -11,11 +11,13 @@ type InstallPromptEvent = Event & {
  * 一键保存到桌面（PWA 安装）：
  * 安卓 Chrome 有安装事件时直接弹安装框；苹果手机没有程序化安装入口，点按钮显示三步操作提示；
  * 已经装到桌面时显示已在桌面。苹果/安卓/桌面浏览器都能点，不会点完没反应。
- * 位置：未安装时放在设置页顶部（显眼）；已安装后顶部的不显示，改由页面底部的实例显示。
+ * 位置：未安装时放在设置页顶部（显眼）；检测到从桌面图标打开时提示彻底隐藏；
+ * 手动确认已添加（浏览器里无法检测是否存过图标）时，底部留一张可清除的记录。
  */
 export default function InstallButton({ showWhenInstalled = false }: { showWhenInstalled?: boolean }) {
   const [deferred, setDeferred] = useState<InstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
   const [manualAdded, setManualAdded] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [showIOSHelp, setShowIOSHelp] = useState(false);
@@ -32,6 +34,7 @@ export default function InstallButton({ showWhenInstalled = false }: { showWhenI
     } catch {
       manual = false;
     }
+    setIsStandalone(standalone);
     setManualAdded(manual);
     setInstalled(standalone || manual);
     setIsIOS(/iphone|ipad|ipod/i.test(window.navigator.userAgent) && !standalone);
@@ -92,10 +95,11 @@ export default function InstallButton({ showWhenInstalled = false }: { showWhenI
       window.matchMedia("(display-mode: standalone)").matches ||
       (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
     setManualAdded(false);
+    setIsStandalone(standalone);
     setInstalled(standalone);
   }
 
-  if (showWhenInstalled ? !installed : installed) return null;
+  if (showWhenInstalled ? !installed || isStandalone : installed) return null;
 
   return (
     <div className="rounded-2xl bg-white dark:bg-gray-900 p-4">
