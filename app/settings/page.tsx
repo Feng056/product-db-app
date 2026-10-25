@@ -120,11 +120,6 @@ export default async function SettingsPage() {
       <main className="page-container">
         <h1 className="text-xl font-bold">设置</h1>
 
-        {/* 保存到桌面 */}
-        <section className="mt-4">
-          <InstallButton />
-        </section>
-
         {/* 账户 */}
         <section className="mt-4">
           <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400 ">账户</h2>
@@ -143,6 +138,8 @@ export default async function SettingsPage() {
         </section>
 
         <CollapsibleSection title="显示设置" defaultCollapsed>
+          {/* 保存到桌面：只放折叠区里，不自动弹，点保存才弹快捷框；保存后显示已保存，图标删了可重新保存 */}
+          <InstallButton />
           <div className="rounded-2xl bg-white dark:bg-gray-900 p-4">
             <div className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
               产品库右上角展示
@@ -205,10 +202,6 @@ export default async function SettingsPage() {
           />
         )}
 
-        {/* 已保存到桌面后，按钮挪到最下方，不再占顶部位置 */}
-        <section className="mt-6">
-          <InstallButton showWhenInstalled />
-        </section>
       </main>
       <BottomNav isAdmin={isAdmin} />
     </>
