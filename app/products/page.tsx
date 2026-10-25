@@ -335,24 +335,9 @@ export default async function ProductsPage({ searchParams }: Props) {
   return (
     <>
       <main className="page-container">
-        <div className="flex items-center justify-between">
-          <h1 className="max-w-[60%] truncate text-xl font-bold">
+        <div className="flex items-center justify-between gap-2">
+          <h1 className="min-w-0 flex-1 truncate text-xl font-bold">
             {libraries.find((l) => l.id === currentId)?.name || "产品库"}
-            {isSubCopy && (
-              <>
-                <SubscriptionActions libraryId={currentId} />
-                <CoCreateMenu
-                  libraryId={currentId}
-                  libraryName={
-                    libraries.find((l) => l.id === currentId)?.name || "产品库"
-                  }
-                  initial={{
-                    status: coCreateState.status,
-                    hasPendingSubmission: coCreateState.hasPendingSubmission,
-                  }}
-                />
-              </>
-            )}
           </h1>
           {headerDisplay === "avatar" &&
             (headerAvatarUrl ? (
@@ -373,6 +358,23 @@ export default async function ProductsPage({ searchParams }: Props) {
             </span>
           )}
         </div>
+
+        {/* 订阅副本的操作按钮单独一行：之前塞在截断的标题里，「共同创作」会被截成省略号的三个点 */}
+        {isSubCopy && (
+          <div className="mt-1 flex flex-wrap items-center">
+            <SubscriptionActions libraryId={currentId} />
+            <CoCreateMenu
+              libraryId={currentId}
+              libraryName={
+                libraries.find((l) => l.id === currentId)?.name || "产品库"
+              }
+              initial={{
+                status: coCreateState.status,
+                hasPendingSubmission: coCreateState.hasPendingSubmission,
+              }}
+            />
+          </div>
+        )}
 
         {/* 搜索栏 */}
         <SearchBox initial={query} mode={searchMode} baseHref={searchBaseHref} />
