@@ -214,19 +214,19 @@ export default function LibraryManageList({
                 {isSubCopy && <span className="ml-1 opacity-70">📡</span>}
               </div>
               {expandedId === lib.id ? (
-                /* 展开时：自建库改名放收起上方，订阅库只有收起 */
-                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                /* 展开时：改名和收起左右并排、按钮改大，避免上下叠放误触 */
+                <div className="flex shrink-0 items-center gap-2">
                   {!isSubCopy && (
                     <button
                       onClick={() => setRenamingId(lib.id)}
-                      className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                      className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300"
                     >
                       改名
                     </button>
                   )}
                   <button
                     onClick={() => setExpandedId(null)}
-                    className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                    className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300"
                   >
                     收起 ▲
                   </button>
