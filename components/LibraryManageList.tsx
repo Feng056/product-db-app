@@ -205,13 +205,29 @@ export default function LibraryManageList({
                     {unsubscribingId === lib.id ? "取消中…" : "取消订阅"}
                   </button>
                 </div>
+              ) : expandedId === lib.id ? (
+                /* 展开时：改名放收起上方 */
+                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                  <button
+                    onClick={() => setRenamingId(lib.id)}
+                    className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                  >
+                    改名
+                  </button>
+                  <button
+                    onClick={() => setExpandedId(null)}
+                    className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                  >
+                    收起 ▲
+                  </button>
+                </div>
               ) : (
                 /* 自建库：操作收进二级菜单 */
                 <button
-                  onClick={() => setExpandedId(expandedId === lib.id ? null : lib.id)}
+                  onClick={() => setExpandedId(lib.id)}
                   className="shrink-0 rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300"
                 >
-                  {expandedId === lib.id ? "收起 ▲" : "管理 ⋯"}
+                  管理 ⋯
                 </button>
               )}
             </div>
@@ -247,13 +263,13 @@ export default function LibraryManageList({
                   </button>
                   <span className="text-xs text-gray-400">关闭后首页切换条里不再显示</span>
                 </div>
-                {/* 操作按钮 */}
-                <div className="flex flex-wrap gap-2">
+                {/* 操作按钮：主操作独占一行，次要操作一行均分 */}
+                <div className="space-y-2">
                   {(subCounts[lib.id] || 0) > 0 && (
                     <button
                       onClick={() => onPush(lib, subCounts[lib.id])}
                       disabled={pushingId === lib.id}
-                      className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50"
+                      className="w-full rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50"
                     >
                       {pushingId === lib.id ? "推送中…" : "📡 推送更新"}
                     </button>
@@ -261,7 +277,7 @@ export default function LibraryManageList({
                   {(!lib.publish_status || lib.publish_status === "private" || lib.publish_status === "rejected") && (
                     <button
                       onClick={() => onRequestPublish(lib.id, lib.name, false)}
-                      className="rounded-xl bg-green-50 px-5 py-2.5 text-sm text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                      className="w-full rounded-xl bg-green-50 px-5 py-2.5 text-sm text-green-700 dark:bg-green-900/30 dark:text-green-400"
                     >
                       发布
                     </button>
@@ -269,69 +285,64 @@ export default function LibraryManageList({
                   {lib.publish_status === "pending" && (
                     <button
                       onClick={() => onUnpublish(lib.id, lib.name, false)}
-                      className="rounded-xl bg-amber-50 px-5 py-2.5 text-sm text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                      className="w-full rounded-xl bg-amber-50 px-5 py-2.5 text-sm text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
                     >
                       撤回申请
                     </button>
                   )}
-                  {/* 下架与删除合为一个入口：点开再选仅下架（保留库和产品）或彻底删除 */}
-                  {lib.publish_status === "published" &&
-                    (removeChoiceId === lib.id ? (
-                      <>
-                        <button
-                          onClick={() => {
-                            setRemoveChoiceId(null);
-                            onUnpublish(lib.id, lib.name, true);
-                          }}
-                          className="rounded-xl bg-amber-50 px-5 py-2.5 text-sm text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                        >
-                          仅下架
-                        </button>
-                        <button
-                          onClick={() => {
-                            setRemoveChoiceId(null);
-                            onDelete(lib.id, lib.name);
-                          }}
-                          className="rounded-xl bg-red-50 px-5 py-2.5 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400"
-                        >
-                          彻底删除
-                        </button>
-                        <button
-                          onClick={() => setRemoveChoiceId(null)}
-                          className="rounded-xl bg-gray-100 px-5 py-2.5 text-sm text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-                        >
-                          取消
-                        </button>
-                      </>
-                    ) : (
+                  <div className="flex gap-2">
+                    {(lib.publish_status === "published" || pendingCo > 0) && (
                       <button
-                        onClick={() => setRemoveChoiceId(lib.id)}
-                        className="rounded-xl bg-red-50 px-5 py-2.5 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400"
+                        onClick={() => setCoCreateLib({ id: lib.id, name: lib.name, coCreateEnabled: lib.co_create_enabled === true })}
+                        className="flex-1 rounded-xl bg-purple-50 px-5 py-2.5 text-sm text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
+                      >
+                        共同创作{pendingCo > 0 ? `（${pendingCo} 待审核）` : ""}
+                      </button>
+                    )}
+                    {lib.publish_status === "published" ? (
+                      <button
+                        onClick={() => setRemoveChoiceId(removeChoiceId === lib.id ? null : lib.id)}
+                        className="flex-1 rounded-xl bg-red-50 px-5 py-2.5 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400"
                       >
                         下架 / 删除
                       </button>
-                    ))}
-                  {(lib.publish_status === "published" || pendingCo > 0) && (
-                    <button
-                      onClick={() => setCoCreateLib({ id: lib.id, name: lib.name, coCreateEnabled: lib.co_create_enabled === true })}
-                      className="rounded-xl bg-purple-50 px-5 py-2.5 text-sm text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
-                    >
-                      共同创作{pendingCo > 0 ? `（${pendingCo} 待审核）` : ""}
-                    </button>
-                  )}
-                  <button
-                    onClick={() => setRenamingId(lib.id)}
-                    className="rounded-xl bg-gray-100 px-5 py-2.5 text-sm text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-                  >
-                    改名
-                  </button>
-                  {lib.publish_status !== "published" && (
-                    <button
-                      onClick={() => onDelete(lib.id, lib.name)}
-                      className="rounded-xl bg-red-50 px-5 py-2.5 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400"
-                    >
-                      删除
-                    </button>
+                    ) : (
+                      <button
+                        onClick={() => onDelete(lib.id, lib.name)}
+                        className="flex-1 rounded-xl bg-red-50 px-5 py-2.5 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400"
+                      >
+                        删除
+                      </button>
+                    )}
+                  </div>
+                  {/* 下架/删除点开后的选择行 */}
+                  {lib.publish_status === "published" && removeChoiceId === lib.id && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setRemoveChoiceId(null);
+                          onUnpublish(lib.id, lib.name, true);
+                        }}
+                        className="flex-1 rounded-xl bg-amber-50 px-5 py-2.5 text-sm text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                      >
+                        仅下架
+                      </button>
+                      <button
+                        onClick={() => {
+                          setRemoveChoiceId(null);
+                          onDelete(lib.id, lib.name);
+                        }}
+                        className="flex-1 rounded-xl bg-red-50 px-5 py-2.5 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400"
+                      >
+                        彻底删除
+                      </button>
+                      <button
+                        onClick={() => setRemoveChoiceId(null)}
+                        className="flex-1 rounded-xl bg-gray-100 px-5 py-2.5 text-sm text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                      >
+                        取消
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
