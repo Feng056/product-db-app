@@ -20,7 +20,7 @@ export default function SubscriptionActions({ libraryId }: { libraryId: string }
       setTimeout(() => setState("idle"), 2500);
     } else {
       setState("done");
-      setDoneMsg(`已同步 ${res.updated} 个产品`);
+      setDoneMsg(res.updated === 0 ? "已是最新" : `已同步 ${res.updated} 个产品`);
       setTimeout(() => setState("idle"), 2000);
     }
   }

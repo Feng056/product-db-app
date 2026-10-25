@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { randomBytes } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import type { SpecItem } from "@/lib/types";
-import { copyProductsToLibrary } from "@/lib/copy-products";
+import { copyProductsToLibrary, syncProductsToLibrary } from "@/lib/copy-products";
 import { prependLibraryOrder } from "@/lib/library-order";
 
 type ActionResult = { error?: string; token?: string };
@@ -192,7 +192,6 @@ export async function subscribeToLibraries(
   return { subscribed, libraryIds };
 }
 
-/** 同步单个副本：清空后从源库重拷 */
 /** 内部：推送源库到所有订阅者副本（不校验调用者身份，供管理员审核通过后调用） */
 export async function pushToAllSubscribers(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -228,6 +227,7 @@ export async function pushToAllSubscribers(
   return updated;
 }
 
+/** 同步单个副本：增量同步，只同步改动的部分（首次订阅仍走全量复制） */
 async function syncCopy(
   supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
   sourceId: string,
@@ -235,8 +235,7 @@ async function syncCopy(
   copyOwnerId: string,
   categories?: string[] | null
 ): Promise<number> {
-  await supabase.from("products").delete().eq("library_id", copyId);
-  return copyProductsToLibrary(supabase, sourceId, copyId, copyOwnerId, categories);
+  return syncProductsToLibrary(supabase, sourceId, copyId, copyOwnerId, categories);
 }
 
 /** 主人一键推送：把源库最新内容覆盖到所有订阅者的副本 */

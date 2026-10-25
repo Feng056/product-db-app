@@ -7,6 +7,8 @@ import LogoutButton from "@/components/LogoutButton";
 import AccountEditor from "@/components/AccountEditor";
 import PasswordChangeForm from "@/components/PasswordChangeForm";
 import ThemeSelector from "@/components/ThemeSelector";
+import CollapsibleSection from "@/components/CollapsibleSection";
+import InstallButton from "@/components/InstallButton";
 import AdminPanel from "@/components/AdminPanel";
 import type { InviteCode, Profile, Group } from "@/lib/types";
 
@@ -118,6 +120,11 @@ export default async function SettingsPage() {
       <main className="page-container">
         <h1 className="text-xl font-bold">设置</h1>
 
+        {/* 保存到桌面 */}
+        <section className="mt-4">
+          <InstallButton />
+        </section>
+
         {/* 账户 */}
         <section className="mt-4">
           <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400 ">账户</h2>
@@ -135,9 +142,7 @@ export default async function SettingsPage() {
           </div>
         </section>
 
-        {/* 显示设置 */}
-        <section className="mt-6">
-          <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400 ">显示设置</h2>
+        <CollapsibleSection title="显示设置" defaultCollapsed>
           <div className="rounded-2xl bg-white dark:bg-gray-900 p-4">
             <div className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
               产品库右上角展示
@@ -176,11 +181,11 @@ export default async function SettingsPage() {
               })}
             </div>
           </div>
-          <div className="mt-3 rounded-2xl bg-white dark:bg-gray-900 p-4">
+          <div className="rounded-2xl bg-white dark:bg-gray-900 p-4">
             <div className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">页面颜色</div>
             <ThemeSelector />
           </div>
-        </section>
+        </CollapsibleSection>
 
         {/* 管理（仅管理员）：可折叠，分组展示 */}
         {isAdmin && (
