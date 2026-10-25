@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getLibraryCategories, requestPublish } from "@/actions/libraries";
+import { getLibraryCategories, getCoCreateEnabled, requestPublish } from "@/actions/libraries";
 
 /** 发布时的分类选择弹窗：全部分类 或 勾选部分分类 */
 export default function PublishDialog({
@@ -20,15 +20,17 @@ export default function PublishDialog({
   const [categories, setCategories] = useState<string[] | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [allSelected, setAllSelected] = useState(true);
+  const [coCreate, setCoCreate] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 懒加载分类
+  // 懒加载分类 + 当前共同创作开关（默认关闭）
   useEffect(() => {
     getLibraryCategories(libraryId).then((cats) => {
       setCategories(cats);
       setSelected(new Set(cats));
     });
+    getCoCreateEnabled(libraryId).then(setCoCreate);
   }, [libraryId]);
 
   function toggle(cat: string) {
@@ -60,7 +62,7 @@ export default function PublishDialog({
           allSelected
             ? "将发布全部分类"
             : `将仅发布以下分类：${Array.from(selected).join("、")}`
-        }`
+        }\n${coCreate ? "开启共同创作：订阅者可申请参与修改" : "不开启共同创作"}`
       )
     )
       return;
@@ -68,7 +70,8 @@ export default function PublishDialog({
     setError(null);
     const res = await requestPublish(
       libraryId,
-      allSelected ? null : Array.from(selected)
+      allSelected ? null : Array.from(selected),
+      coCreate
     );
     setSubmitting(false);
     if (res.error) {
@@ -128,6 +131,23 @@ export default function PublishDialog({
         </div>
 
         {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
+
+        <label className="mt-4 flex items-start gap-2 rounded-xl bg-gray-50 px-3 py-2.5 dark:bg-gray-800">
+          <input
+            type="checkbox"
+            checked={coCreate}
+            onChange={(e) => setCoCreate(e.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 accent-blue-600"
+          />
+          <span>
+            <span className="block text-sm font-medium text-gray-900 dark:text-gray-100">
+              允许订阅者申请共同创作
+            </span>
+            <span className="block text-xs text-gray-500 dark:text-gray-400">
+              默认关闭；开启后订阅者可申请参与修改，改完提交给你审核，通过后同步给所有订阅者
+            </span>
+          </span>
+        </label>
 
         <div className="mt-4 flex gap-2">
           <button

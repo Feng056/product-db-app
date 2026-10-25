@@ -9,6 +9,7 @@ export type Library = {
   publish_requested_at?: string | null;
   time_display?: string;
   publish_categories?: string[] | null;
+  co_create_enabled?: boolean;
 };
 
 /** 规格参数：动态 key-value 列表 */

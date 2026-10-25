@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { renameLibrary, deleteLibrary, requestPublish, unpublishLibrary, setLibraryTimeDisplay, saveLibraryOrder } from "@/actions/libraries";
+import { renameLibrary, deleteLibrary, requestPublish, unpublishLibrary, setLibraryTimeDisplay, saveLibraryOrder, setCoCreateEnabled } from "@/actions/libraries";
 import { pushSubscriptionUpdate, unsubscribeFromLibrary } from "@/actions/shares";
 import PublishDialog from "./PublishDialog";
 import CoCreateReviewModal from "./CoCreateReviewModal";
@@ -90,6 +90,12 @@ export default function LibraryManageList({
   async function onTimeDisplay(id: string, mode: string) {
     setError(null);
     const res = await setLibraryTimeDisplay(id, mode);
+    if (res?.error) setError(res.error);
+  }
+
+  async function onToggleCoCreate(id: string, enabled: boolean) {
+    setError(null);
+    const res = await setCoCreateEnabled(id, enabled);
     if (res?.error) setError(res.error);
   }
 
@@ -196,6 +202,23 @@ export default function LibraryManageList({
                     <option value="updated">仅显示更新时间</option>
                   </select>
                 </div>
+                {/* 共同创作开关：发布后随时可切；关闭后仅已加入的创作者不受影响，其他人不再看到入口 */}
+                {lib.publish_status === "published" && (
+                  <div className="flex items-center gap-2">
+                    <span className="shrink-0 text-xs text-gray-500 dark:text-gray-400">共同创作</span>
+                    <button
+                      onClick={() => onToggleCoCreate(lib.id, !lib.co_create_enabled)}
+                      className={`rounded-full px-3 py-1.5 text-xs font-medium ${
+                        lib.co_create_enabled
+                          ? "bg-green-600 text-white"
+                          : "bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                      }`}
+                    >
+                      {lib.co_create_enabled ? "已开启" : "已关闭"}
+                    </button>
+                    <span className="text-xs text-gray-400">关闭后仅已加入的创作者可见</span>
+                  </div>
+                )}
                 {/* 操作按钮 */}
                 <div className="flex flex-wrap gap-2">
                   {(subCounts[lib.id] || 0) > 0 && (
@@ -275,7 +298,7 @@ export default function LibraryManageList({
       {/* 订阅库 */}
       {subLibs.length > 0 && (
         <>
-          <div className="mb-2 mt-4 text-xs font-medium text-gray-400">订阅库（{subLibs.length}）· 只读</div>
+          <div className="mb-2 mt-4 text-xs font-medium text-gray-400">订阅库（{subLibs.length}）</div>
           <div className="space-y-2">
             {subLibs.map(renderRow)}
           </div>

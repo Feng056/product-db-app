@@ -5,9 +5,6 @@ import { ensureDefaultLibrary } from "@/actions/libraries";
 import BottomNav from "@/components/BottomNav";
 import ProductCard from "@/components/ProductCard";
 import LibraryBar from "@/components/LibraryBar";
-import SubscriptionActions from "@/components/SubscriptionActions";
-import CoCreateMenu from "@/components/CoCreateMenu";
-import { getCopyCoCreateState } from "@/actions/co-create";
 import FilterCollapse from "@/components/FilterCollapse";
 import ProductGridCard from "@/components/ProductGridCard";
 import SortSelect from "@/components/SortSelect";
@@ -33,25 +30,11 @@ export default async function ProductsPage({ searchParams }: Props) {
     libraries.find((l) => l.id === searchParams.lib)?.id ?? libraries[0].id;
 
   // 是否为订阅副本（只读）+ 所有订阅副本（并行查询）
-  const [subInfoRes, allSubsRes] = await Promise.all([
-    supabase
-      .from("library_subscriptions")
-      .select("id, library_id")
-      .eq("copy_library_id", currentId)
-      .eq("subscriber_id", user!.id)
-      .single(),
-    supabase
-      .from("library_subscriptions")
-      .select("copy_library_id, has_update")
-      .eq("subscriber_id", user!.id),
-  ]);
-  const subInfo = subInfoRes.data;
-  const allSubs = allSubsRes.data;
-  const isSubCopy = !!subInfo;
+  const { data: allSubs } = await supabase
+    .from("library_subscriptions")
+    .select("copy_library_id, has_update")
+    .eq("subscriber_id", user!.id);
   const subCopyIds = new Set((allSubs || []).map((s) => s.copy_library_id));
-  const coCreateState = isSubCopy
-    ? await getCopyCoCreateState(currentId)
-    : { isSub: false, status: "none" as const, hasPendingSubmission: false };
   const updatedCopyIds = new Set(
     ((allSubs || []) as { copy_library_id: string; has_update: boolean }[])
       .filter((s) => s.has_update)
@@ -358,23 +341,6 @@ export default async function ProductsPage({ searchParams }: Props) {
             </span>
           )}
         </div>
-
-        {/* 订阅副本的操作按钮单独一行：之前塞在截断的标题里，「共同创作」会被截成省略号的三个点 */}
-        {isSubCopy && (
-          <div className="mt-1 flex flex-wrap items-center">
-            <SubscriptionActions libraryId={currentId} />
-            <CoCreateMenu
-              libraryId={currentId}
-              libraryName={
-                libraries.find((l) => l.id === currentId)?.name || "产品库"
-              }
-              initial={{
-                status: coCreateState.status,
-                hasPendingSubmission: coCreateState.hasPendingSubmission,
-              }}
-            />
-          </div>
-        )}
 
         {/* 搜索栏 */}
         <SearchBox initial={query} mode={searchMode} baseHref={searchBaseHref} />

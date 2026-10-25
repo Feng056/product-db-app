@@ -181,6 +181,7 @@ export async function getCopyCoCreateState(copyLibraryId: string): Promise<{
   isSub: boolean;
   status: "none" | "pending" | "approved" | "rejected";
   hasPendingSubmission: boolean;
+  coCreateEnabled: boolean;
 }> {
   const { supabase, user } = await requireUser();
   const { data: sub } = await supabase
@@ -189,8 +190,8 @@ export async function getCopyCoCreateState(copyLibraryId: string): Promise<{
     .eq("copy_library_id", copyLibraryId)
     .eq("subscriber_id", user.id)
     .single();
-  if (!sub) return { isSub: false, status: "none", hasPendingSubmission: false };
-  const [ccRes, pendRes] = await Promise.all([
+  if (!sub) return { isSub: false, status: "none", hasPendingSubmission: false, coCreateEnabled: false };
+  const [ccRes, pendRes, srcLibRes] = await Promise.all([
     supabase
       .from("library_co_creators")
       .select("status")
@@ -203,12 +204,19 @@ export async function getCopyCoCreateState(copyLibraryId: string): Promise<{
       .eq("copy_library_id", copyLibraryId)
       .eq("status", "pending")
       .limit(1),
+    supabase
+      .from("libraries")
+      .select("co_create_enabled")
+      .eq("id", sub.library_id)
+      .single(),
   ]);
   const status = (ccRes.data?.status as "pending" | "approved" | "rejected" | undefined) || "none";
   return {
     isSub: true,
     status,
     hasPendingSubmission: !!pendRes.data && pendRes.data.length > 0,
+    coCreateEnabled:
+      (srcLibRes.data as { co_create_enabled?: boolean } | null)?.co_create_enabled === true,
   };
 }
 
@@ -226,7 +234,7 @@ export async function applyCoCreate(
   if (!sub) return { error: "不是订阅的库" };
   const { data: srcLib } = await supabase
     .from("libraries")
-    .select("publish_status")
+    .select("publish_status, co_create_enabled")
     .eq("id", sub.library_id)
     .single();
   if (!srcLib || srcLib.publish_status !== "published") {
@@ -240,6 +248,10 @@ export async function applyCoCreate(
     .single();
   if (existing?.status === "approved") return { error: "已是共同创作者" };
   if (existing?.status === "pending") return { error: "申请审核中" };
+  // 开关只拦新申请：已加入（已批准/审核中）的不受影响
+  if (!(srcLib as { co_create_enabled?: boolean }).co_create_enabled) {
+    return { error: "发布者未开启共同创作" };
+  }
   const { data: prof } = await supabase
     .from("profiles")
     .select("display_name, username")

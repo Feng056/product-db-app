@@ -3,6 +3,9 @@
 import { useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import type { PublishedLib } from "@/components/DiscoverClient";
+import SubscriptionActions from "@/components/SubscriptionActions";
+import CoCreateMenu from "@/components/CoCreateMenu";
+import type { CoCreateState } from "@/components/CoCreateMenu";
 import {
   getSubscribeJob,
   subscribeToJob,
@@ -14,8 +17,15 @@ import {
  * 订阅广场：他人发布的库仅可订阅（只读同步，不提供独立副本，防止改后冒充发布者）。
  * 点订阅后任务进后台跑，不弹阻塞窗口：按钮里显示进度且不可点，
  * 跑完后按钮变为“刷新订阅”可点，点后跳到新订阅的库。
+ * 已订阅的库：右上角显示已订阅角标（点进副本），下方是刷新订阅和共同创作。
  */
-export default function SubscribePlaza({ libs }: { libs: PublishedLib[] }) {
+export default function SubscribePlaza({
+  libs,
+  coCreateStates = {},
+}: {
+  libs: PublishedLib[];
+  coCreateStates?: Record<string, CoCreateState & { coCreateEnabled: boolean }>;
+}) {
   const [open, setOpen] = useState(true);
   const router = useRouter();
   const job = useSyncExternalStore(subscribeToJob, getSubscribeJob, () => null);
@@ -67,6 +77,11 @@ export default function SubscribePlaza({ libs }: { libs: PublishedLib[] }) {
               mineRunning && job && job.total > 0
                 ? Math.round((job.copied / job.total) * 100)
                 : 0;
+            // 共同创作入口：开关开启时所有订阅者可见；开关关闭后仅已申请/已加入的创作者可见
+            const coState = lib.copy_id ? coCreateStates[lib.copy_id] : undefined;
+            const showCoCreate =
+              !!coState &&
+              (coState.coCreateEnabled || coState.status === "pending" || coState.status === "approved");
             return (
               <div
                 key={lib.id}
@@ -75,13 +90,23 @@ export default function SubscribePlaza({ libs }: { libs: PublishedLib[] }) {
                 <div className="flex items-center gap-2">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <div className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
+                      <div className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900 dark:text-gray-100">
                         {lib.name}
                       </div>
                       {lib.is_own && (
                         <span className="shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700 dark:bg-green-900/30 dark:text-green-300">
                           我的发布
                         </span>
+                      )}
+                      {lib.is_subscribed && (
+                        <button
+                          onClick={() =>
+                            lib.copy_id && router.push(`/products?lib=${lib.copy_id}`)
+                          }
+                          className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                        >
+                          已订阅
+                        </button>
                       )}
                     </div>
                     <div className="text-xs text-gray-400">
@@ -117,14 +142,19 @@ export default function SubscribePlaza({ libs }: { libs: PublishedLib[] }) {
                       👥 已有 {lib.sub_count} 人订阅
                     </div>
                   ) : lib.is_subscribed ? (
-                    <button
-                      onClick={() =>
-                        lib.copy_id && router.push(`/products?lib=${lib.copy_id}`)
-                      }
-                      className="flex-1 rounded-lg bg-gray-100 py-2 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300"
-                    >
-                      已订阅
-                    </button>
+                    <div className="flex flex-1 flex-wrap items-center gap-1">
+                      {lib.copy_id && <SubscriptionActions libraryId={lib.copy_id} />}
+                      {lib.copy_id && showCoCreate && coState && (
+                        <CoCreateMenu
+                          libraryId={lib.copy_id}
+                          libraryName={lib.name}
+                          initial={{
+                            status: coState.status,
+                            hasPendingSubmission: coState.hasPendingSubmission,
+                          }}
+                        />
+                      )}
+                    </div>
                   ) : mineDone ? (
                     <button
                       onClick={onRefresh}

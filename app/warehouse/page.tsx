@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getCurrentProfile } from "@/actions/auth";
 import { ensureDefaultLibrary, getPublishedLibraries } from "@/actions/libraries";
-import { getCoCreatePendingCounts } from "@/actions/co-create";
+import { getCoCreatePendingCounts, getCopyCoCreateState } from "@/actions/co-create";
 import { createClient } from "@/lib/supabase/server";
 import BottomNav from "@/components/BottomNav";
 import CreateLibraryForm from "@/components/CreateLibraryForm";
@@ -47,6 +47,19 @@ export default async function WarehousePage() {
 
   const subCopyIds = new Set((mySubsRes.data || []).map((s) => s.copy_library_id));
 
+  // 各订阅副本的共同创作状态（广场已订阅行用：是否开启、申请/审核状态）
+  const coCreateStateList = await Promise.all(
+    Array.from(subCopyIds).map(async (copyId) => {
+      const st = await getCopyCoCreateState(copyId);
+      return [copyId, st] as const;
+    })
+  );
+  const coCreateStates: Record<
+    string,
+    { status: "none" | "pending" | "approved" | "rejected"; hasPendingSubmission: boolean; coCreateEnabled: boolean }
+  > = {};
+  for (const [id, st] of coCreateStateList) coCreateStates[id] = st;
+
   return (
     <>
       <main className="page-container">
@@ -54,7 +67,7 @@ export default async function WarehousePage() {
 
         {/* 订阅广场 */}
         <div className="mt-4">
-          <SubscribePlaza libs={publishedLibs} />
+          <SubscribePlaza libs={publishedLibs} coCreateStates={coCreateStates} />
         </div>
 
         {/* 新建仓库 */}

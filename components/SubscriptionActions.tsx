@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { pullSubscriptionUpdate } from "@/actions/shares";
 
 /**
@@ -10,6 +11,7 @@ import { pullSubscriptionUpdate } from "@/actions/shares";
 export default function SubscriptionActions({ libraryId }: { libraryId: string }) {
   const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
   const [doneMsg, setDoneMsg] = useState("");
+  const router = useRouter();
 
   async function onRefresh() {
     if (state === "busy") return;
@@ -21,6 +23,7 @@ export default function SubscriptionActions({ libraryId }: { libraryId: string }
     } else {
       setState("done");
       setDoneMsg(res.updated === 0 ? "已是最新" : `已同步 ${res.updated} 个产品`);
+      router.refresh();
       setTimeout(() => setState("idle"), 2000);
     }
   }

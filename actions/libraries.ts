@@ -218,10 +218,12 @@ export async function deleteLibrary(formData: FormData): Promise<ActionResult> {
 
 /** 申请发布自己的库（进入待审核）；已发布的库可申请更新重新审核
  * @param categories 要发布的分类，null/空数组表示全部分类
+ * @param coCreateEnabled 是否允许订阅者申请共同创作，默认关闭
  */
 export async function requestPublish(
   libraryId: string,
-  categories?: string[] | null
+  categories?: string[] | null,
+  coCreateEnabled?: boolean
 ): Promise<ActionResult> {
   const { supabase, user } = await requireUser();
   const { data: lib } = await supabase
@@ -240,11 +242,46 @@ export async function requestPublish(
       publish_status: "pending",
       publish_requested_at: new Date().toISOString(),
       publish_categories,
+      co_create_enabled: coCreateEnabled === true,
     })
     .eq("id", libraryId);
   if (error) return { error: error.message };
   revalidatePath("/products/new");
   return { message: lib.publish_status === "published" ? "已提交更新审核，通过后自动推送给订阅者" : "已提交审核，等待管理员通过" };
+}
+
+/** 获取某库的共同创作开关（发布弹窗回显用，默认关闭） */
+export async function getCoCreateEnabled(libraryId: string): Promise<boolean> {
+  const { supabase, user } = await requireUser();
+  const { data } = await supabase
+    .from("libraries")
+    .select("co_create_enabled")
+    .eq("id", libraryId)
+    .eq("user_id", user.id)
+    .single();
+  return (data as { co_create_enabled?: boolean } | null)?.co_create_enabled === true;
+}
+
+/** 发布者随时开关共同创作（仅本人库；关闭后仅已加入的创作者不受影响，其他人不再看到入口） */
+export async function setCoCreateEnabled(
+  libraryId: string,
+  enabled: boolean
+): Promise<ActionResult> {
+  const { supabase, user } = await requireUser();
+  const { data: lib } = await supabase
+    .from("libraries")
+    .select("id")
+    .eq("id", libraryId)
+    .eq("user_id", user.id)
+    .single();
+  if (!lib) return { error: "无权限" };
+  const { error } = await supabase
+    .from("libraries")
+    .update({ co_create_enabled: enabled })
+    .eq("id", libraryId);
+  if (error) return { error: error.message };
+  revalidatePath("/warehouse");
+  return {};
 }
 
 /** 获取某库的去重分类列表（发布时勾选用） */
