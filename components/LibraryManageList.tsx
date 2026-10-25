@@ -186,25 +186,13 @@ export default function LibraryManageList({
               </div>
               {isSubCopy ? (
                 /* 订阅副本：不可改名/发布，只能取消订阅（整库删除） */
-                <div className="flex shrink-0 items-center gap-2">
-                  <button
-                    onClick={() => onToggleShowOnHome(lib.id, lib.show_on_home === false)}
-                    className={`rounded-lg px-2.5 py-1.5 text-xs font-medium ${
-                      lib.show_on_home !== false
-                        ? "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                        : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
-                    }`}
-                  >
-                    {lib.show_on_home !== false ? "首页显示中" : "首页已隐藏"}
-                  </button>
-                  <button
-                    onClick={() => onUnsubscribe(lib.id, lib.name)}
-                    disabled={unsubscribingId === lib.id}
-                    className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400 disabled:opacity-50"
-                  >
-                    {unsubscribingId === lib.id ? "取消中…" : "取消订阅"}
-                  </button>
-                </div>
+                <button
+                  onClick={() => onUnsubscribe(lib.id, lib.name)}
+                  disabled={unsubscribingId === lib.id}
+                  className="shrink-0 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400 disabled:opacity-50"
+                >
+                  {unsubscribingId === lib.id ? "取消中…" : "取消订阅"}
+                </button>
               ) : expandedId === lib.id ? (
                 /* 展开时：改名放收起上方 */
                 <div className="flex shrink-0 flex-col items-end gap-1.5">
@@ -247,21 +235,6 @@ export default function LibraryManageList({
                     <option value="created">仅显示创建时间</option>
                     <option value="updated">仅显示更新时间</option>
                   </select>
-                </div>
-                {/* 首页显示：关掉后首页切换条里不再显示，直达链接仍可打开 */}
-                <div className="flex items-center gap-2">
-                  <span className="shrink-0 text-xs text-gray-500 dark:text-gray-400">首页显示</span>
-                  <button
-                    onClick={() => onToggleShowOnHome(lib.id, lib.show_on_home === false)}
-                    className={`rounded-full px-3 py-1.5 text-xs font-medium ${
-                      lib.show_on_home !== false
-                        ? "bg-green-600 text-white"
-                        : "bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-                    }`}
-                  >
-                    {lib.show_on_home !== false ? "显示中" : "已隐藏"}
-                  </button>
-                  <span className="text-xs text-gray-400">关闭后首页切换条里不再显示</span>
                 </div>
                 {/* 操作按钮：主操作独占一行，次要操作一行均分 */}
                 <div className="space-y-2">
@@ -357,7 +330,7 @@ export default function LibraryManageList({
     <div>
       {/* 首页显示顺序：排第一位的库为首页默认展示，点按钮调整（浏览器长按拖拽不好用，改用按钮） */}
       {libraries.length > 1 && (
-        <OrderSection libraries={libraries} subCopyIds={subCopyIds} />
+        <OrderSection libraries={libraries} subCopyIds={subCopyIds} onToggleShowOnHome={onToggleShowOnHome} />
       )}
       {/* 自建库 */}
       <div className="mb-2 text-xs font-medium text-gray-400">自建库（{ownLibs.length}）</div>
@@ -411,9 +384,11 @@ export default function LibraryManageList({
 function OrderSection({
   libraries,
   subCopyIds,
+  onToggleShowOnHome,
 }: {
   libraries: Library[];
   subCopyIds: Set<string>;
+  onToggleShowOnHome: (id: string, show: boolean) => void;
 }) {
   const router = useRouter();
   const [order, setOrder] = useState<string[]>(libraries.map((l) => l.id));
@@ -467,26 +442,41 @@ function OrderSection({
 
   const btn =
     "shrink-0 rounded-lg bg-gray-100 px-2.5 py-1.5 text-xs text-gray-600 disabled:opacity-40 dark:bg-gray-800 dark:text-gray-300";
+  // 默认展示角标跟到第一个可见的库；全隐藏时回退到第一个（与首页逻辑一致）
+  const defaultIdx = ordered.findIndex((l) => l.show_on_home !== false);
+  const badgeIdx = defaultIdx === -1 ? 0 : defaultIdx;
   return (
     <div className="mb-4 rounded-2xl bg-white p-3 dark:bg-gray-900">
       <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">首页显示顺序</div>
-      <p className="mt-0.5 text-xs text-gray-400">排第一位的库为首页默认展示，点按钮调整顺序</p>
+      <p className="mt-0.5 text-xs text-gray-400">排第一位的库为首页默认展示，点按钮调整顺序；点显示中/已隐藏可开关首页显示</p>
       <div className="mt-2 space-y-1.5">
         {ordered.map((lib, i) => (
           <div
             key={lib.id}
-            className="flex items-center gap-2 rounded-xl bg-gray-50 px-3 py-2 dark:bg-gray-800/60"
+            className={`flex items-center gap-2 rounded-xl bg-gray-50 px-3 py-2 dark:bg-gray-800/60 ${
+              lib.show_on_home === false ? "opacity-60" : ""
+            }`}
           >
             <span className="w-4 shrink-0 text-xs text-gray-400">{i + 1}</span>
             <span className="min-w-0 flex-1 truncate text-sm text-gray-900 dark:text-gray-100">
               {lib.name}
               {subCopyIds.has(lib.id) && <span className="ml-1 opacity-70">📡</span>}
             </span>
-            {i === 0 && (
+            {i === badgeIdx && (
               <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[11px] text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
                 默认展示
               </span>
             )}
+            <button
+              onClick={() => onToggleShowOnHome(lib.id, lib.show_on_home === false)}
+              className={`shrink-0 rounded-full px-2.5 py-1.5 text-xs font-medium ${
+                lib.show_on_home !== false
+                  ? "bg-green-600 text-white"
+                  : "bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+              }`}
+            >
+              {lib.show_on_home !== false ? "显示中" : "已隐藏"}
+            </button>
             <button disabled={busy || i === 0} onClick={() => move(lib.id, -1)} className={btn}>
               ↑
             </button>
