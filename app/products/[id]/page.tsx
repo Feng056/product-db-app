@@ -108,26 +108,42 @@ export default async function ProductDetailPage({
           <Link href="/products" className="flex items-center gap-2 text-gray-500 dark:text-gray-400 ">
             <span className="text-xl">‹</span> 返回
           </Link>
-          {!isEdit && !isReadOnly && (
-            <Link
-              href={`/products/${product.id}?edit=1`}
-              className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white"
-            >
-              编辑
-            </Link>
-          )}
-          {isSubCopy && coBadge && (
-            <span
-              className={`rounded-full px-3 py-1 text-xs font-medium ${
-                coBadge === "共同创作 · 可编辑"
-                  ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
-                  : coBadge === "修改已提交 · 待审核"
-                    ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
-                    : "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-              }`}
-            >
-              {coBadge}
-            </span>
+          {isSubCopy && coBadge === "共同创作 · 可编辑" && !isEdit ? (
+            <div className="flex flex-col items-end gap-1">
+              <Link
+                href={`/products/${product.id}?edit=1`}
+                className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white"
+              >
+                编辑
+              </Link>
+              <span className="text-xs font-medium text-green-700 dark:text-green-300">
+                共同创作 · 可编辑
+              </span>
+            </div>
+          ) : (
+            <>
+              {!isEdit && !isReadOnly && (
+                <Link
+                  href={`/products/${product.id}?edit=1`}
+                  className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white"
+                >
+                  编辑
+                </Link>
+              )}
+              {isSubCopy && coBadge && (
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-medium ${
+                    coBadge === "共同创作 · 可编辑"
+                      ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+                      : coBadge === "修改已提交 · 待审核"
+                        ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                        : "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                  }`}
+                >
+                  {coBadge}
+                </span>
+              )}
+            </>
           )}
         </div>
 
