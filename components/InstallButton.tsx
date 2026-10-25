@@ -13,7 +13,16 @@ type InstallPromptEvent = Event & {
  * 已经装到桌面时显示已在桌面。苹果/安卓/桌面浏览器都能点，不会点完没反应。
  * 位置：未安装时放在设置页顶部（显眼）；检测到从桌面图标打开时提示彻底隐藏；
  * 手动确认已添加（浏览器里无法检测是否存过图标）时，底部留一张可清除的记录。
+ * “已安装”判定：PWA 独立打开（display-mode standalone / iOS navigator.standalone）
+ * 或安卓 App 壳子（WebView，UA 带 wv 标记，如 APK 图标）——壳子里本来就是应用，不需要再提示安装。
  */
+function detectAppShell(): boolean {
+  if (window.matchMedia("(display-mode: standalone)").matches) return true;
+  if ((window.navigator as Navigator & { standalone?: boolean }).standalone === true) return true;
+  // 安卓 WebView（APK 壳子）的 UA 带 "; wv)"，普通 Chrome 浏览器没有
+  if (/; wv\)/.test(window.navigator.userAgent)) return true;
+  return false;
+}
 export default function InstallButton({ showWhenInstalled = false }: { showWhenInstalled?: boolean }) {
   const [deferred, setDeferred] = useState<InstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
@@ -24,9 +33,7 @@ export default function InstallButton({ showWhenInstalled = false }: { showWhenI
   const [msg, setMsg] = useState("");
 
   useEffect(() => {
-    const standalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+    const standalone = detectAppShell();
     // 浏览器无法检测“已存图标但用浏览器打开”的情况，只能靠用户手动确认
     let manual = false;
     try {
@@ -91,9 +98,7 @@ export default function InstallButton({ showWhenInstalled = false }: { showWhenI
     } catch {
       /* 忽略 */
     }
-    const standalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+    const standalone = detectAppShell();
     setManualAdded(false);
     setIsStandalone(standalone);
     setInstalled(standalone);
