@@ -117,14 +117,55 @@ export default function LibraryManageList({
     if (res?.error) setError(res.error);
   }
 
-  function publishBadge(status?: string) {
-    if (status === "published")
-      return <span className="ml-1 rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400">已发布</span>;
-    if (status === "pending")
-      return <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">审核中</span>;
-    if (status === "rejected")
-      return <span className="ml-1 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700 dark:bg-red-900/30 dark:text-red-400">已驳回</span>;
-    return null;
+  // 首页顺序：全部库按展示顺序排，点开面板里的 ↑↓/置顶调整，排第一位可见的即首页默认
+  const router = useRouter();
+  const [order, setOrder] = useState<string[]>(libraries.map((l) => l.id));
+  const [orderBusy, setOrderBusy] = useState(false);
+  const idsKey = libraries.map((l) => l.id).join(",");
+  useEffect(() => {
+    setOrder(libraries.map((l) => l.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idsKey]);
+  const byId = new Map(libraries.map((l) => [l.id, l]));
+  const ordered: Library[] = [];
+  for (const id of order) {
+    const lib = byId.get(id);
+    if (lib) ordered.push(lib);
+  }
+  for (const l of libraries) {
+    if (!order.includes(l.id)) ordered.push(l);
+  }
+  const defaultIdx = ordered.findIndex(
+    (l) => l.show_on_home !== false || subCopyIds.has(l.id)
+  );
+
+  async function applyOrder(next: string[]) {
+    setOrder(next);
+    setOrderBusy(true);
+    setError(null);
+    const res = await saveLibraryOrder(next);
+    setOrderBusy(false);
+    if (!res.ok) {
+      setError(res.message || "保存失败");
+      setOrder(libraries.map((l) => l.id));
+    } else {
+      router.refresh();
+    }
+  }
+
+  function moveOrder(id: string, dir: number) {
+    const idx = ordered.findIndex((l) => l.id === id);
+    const nextIdx = idx + dir;
+    if (idx < 0 || nextIdx < 0 || nextIdx >= ordered.length) return;
+    const next = ordered.map((l) => l.id);
+    const tmp = next[idx];
+    next[idx] = next[nextIdx];
+    next[nextIdx] = tmp;
+    void applyOrder(next);
+  }
+
+  function toTopOrder(id: string) {
+    void applyOrder([id, ...ordered.filter((l) => l.id !== id).map((l) => l.id)]);
   }
 
   const ownLibs = libraries.filter((l) => !subCopyIds.has(l.id));
@@ -134,6 +175,7 @@ export default function LibraryManageList({
     const isSubCopy = subCopyIds.has(lib.id);
     const pc = coCreateCounts[lib.id];
     const pendingCo = (pc?.applications || 0) + (pc?.submissions || 0);
+    const orderIdx = ordered.findIndex((l) => l.id === lib.id);
     return (
       <div
         key={lib.id}
@@ -167,11 +209,41 @@ export default function LibraryManageList({
         ) : (
           <>
             <div className="flex items-center gap-2">
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
-                  {lib.name}
-                  {publishBadge(lib.publish_status)}
+              <div className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900 dark:text-gray-100">
+                {lib.name}
+                {isSubCopy && <span className="ml-1 opacity-70">📡</span>}
+              </div>
+              {expandedId === lib.id ? (
+                /* 展开时：自建库改名放收起上方，订阅库只有收起 */
+                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                  {!isSubCopy && (
+                    <button
+                      onClick={() => setRenamingId(lib.id)}
+                      className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                    >
+                      改名
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setExpandedId(null)}
+                    className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                  >
+                    收起 ▲
+                  </button>
                 </div>
+              ) : (
+                <button
+                  onClick={() => setExpandedId(lib.id)}
+                  className="shrink-0 rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                >
+                  管理
+                </button>
+              )}
+            </div>
+
+            {/* 管理面板：点开后可勾选首页显示、调整顺序 */}
+            {expandedId === lib.id && (
+              <div className="mt-2 space-y-2 rounded-xl bg-gray-50 p-2.5 dark:bg-gray-800/60">
                 <div className="text-xs text-gray-400">
                   {counts[lib.id] || 0} 个产品
                   {!isSubCopy && (
@@ -183,46 +255,50 @@ export default function LibraryManageList({
                     <span className="ml-1 text-red-500">· {pendingCo} 条共同创作待审核</span>
                   )}
                 </div>
-              </div>
-              {isSubCopy ? (
-                /* 订阅副本：不可改名/发布，只能取消订阅（整库删除） */
-                <button
-                  onClick={() => onUnsubscribe(lib.id, lib.name)}
-                  disabled={unsubscribingId === lib.id}
-                  className="shrink-0 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400 disabled:opacity-50"
-                >
-                  {unsubscribingId === lib.id ? "取消中…" : "取消订阅"}
-                </button>
-              ) : expandedId === lib.id ? (
-                /* 展开时：改名放收起上方 */
-                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                {/* 首页显示：只给自建库勾选，订阅库始终显示 */}
+                {!isSubCopy && (
                   <button
-                    onClick={() => setRenamingId(lib.id)}
-                    className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                    onClick={() => onToggleShowOnHome(lib.id, lib.show_on_home === false)}
+                    className="flex items-center gap-2"
                   >
-                    改名
+                    <span
+                      className={`flex h-5 w-5 items-center justify-center rounded-md border text-sm leading-none ${
+                        lib.show_on_home !== false
+                          ? "border-green-600 bg-green-600 text-white"
+                          : "border-gray-300 bg-white text-transparent dark:border-gray-600 dark:bg-gray-800"
+                      }`}
+                    >
+                      ✓
+                    </span>
+                    <span className="text-xs text-gray-600 dark:text-gray-300">在首页显示</span>
+                    {lib.show_on_home === false && (
+                      <span className="text-xs text-gray-400">（首页不显示）</span>
+                    )}
                   </button>
-                  <button
-                    onClick={() => setExpandedId(null)}
-                    className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300"
-                  >
-                    收起 ▲
+                )}
+                {/* 顺序：当前第几位，上下/置顶调整 */}
+                <div className="flex items-center gap-2">
+                  <span className="shrink-0 text-xs text-gray-500 dark:text-gray-400">
+                    首页顺序：第 {orderIdx + 1} 位
+                  </span>
+                  {orderIdx === defaultIdx && defaultIdx !== -1 && (
+                    <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[11px] text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                      默认展示
+                    </span>
+                  )}
+                  <span className="flex-1" />
+                  <button disabled={orderBusy || orderIdx <= 0} onClick={() => moveOrder(lib.id, -1)} className="shrink-0 rounded-lg bg-white px-2.5 py-1.5 text-xs text-gray-600 disabled:opacity-40 dark:bg-gray-700 dark:text-gray-300">
+                    ↑
+                  </button>
+                  <button disabled={orderBusy || orderIdx >= ordered.length - 1} onClick={() => moveOrder(lib.id, 1)} className="shrink-0 rounded-lg bg-white px-2.5 py-1.5 text-xs text-gray-600 disabled:opacity-40 dark:bg-gray-700 dark:text-gray-300">
+                    ↓
+                  </button>
+                  <button disabled={orderBusy || orderIdx <= 0} onClick={() => toTopOrder(lib.id)} className="shrink-0 rounded-lg bg-white px-2.5 py-1.5 text-xs text-gray-600 disabled:opacity-40 dark:bg-gray-700 dark:text-gray-300">
+                    置顶
                   </button>
                 </div>
-              ) : (
-                /* 自建库：操作收进二级菜单 */
-                <button
-                  onClick={() => setExpandedId(lib.id)}
-                  className="shrink-0 rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300"
-                >
-                  管理 ⋯
-                </button>
-              )}
-            </div>
-
-            {/* 二级菜单：自建库的各项操作 */}
-            {!isSubCopy && expandedId === lib.id && (
-              <div className="mt-2 space-y-2 rounded-xl bg-gray-50 p-2.5 dark:bg-gray-800/60">
+                {!isSubCopy && (
+                <>
                 {/* 时间显示设置 */}
                 <div className="flex items-center gap-2">
                   <span className="shrink-0 text-xs text-gray-500 dark:text-gray-400">时间显示</span>
@@ -318,6 +394,19 @@ export default function LibraryManageList({
                     </div>
                   )}
                 </div>
+                </>)}
+                {isSubCopy && (
+                  <>
+                    <p className="text-xs text-gray-400">订阅库始终在首页显示，不想显示请取消订阅。</p>
+                    <button
+                      onClick={() => onUnsubscribe(lib.id, lib.name)}
+                      disabled={unsubscribingId === lib.id}
+                      className="w-full rounded-xl border border-gray-200 px-5 py-2.5 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400 disabled:opacity-50"
+                    >
+                      {unsubscribingId === lib.id ? "取消中…" : "取消订阅"}
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </>
@@ -328,10 +417,6 @@ export default function LibraryManageList({
 
   return (
     <div>
-      {/* 首页显示顺序：排第一位的库为首页默认展示，点按钮调整（浏览器长按拖拽不好用，改用按钮） */}
-      {libraries.length > 1 && (
-        <OrderSection libraries={libraries} subCopyIds={subCopyIds} onToggleShowOnHome={onToggleShowOnHome} />
-      )}
       {/* 自建库 */}
       <div className="mb-2 text-xs font-medium text-gray-400">自建库（{ownLibs.length}）</div>
       <div className="space-y-2">
@@ -376,127 +461,6 @@ export default function LibraryManageList({
           }}
         />
       )}
-    </div>
-  );
-}
-
-/** 首页显示顺序：全部库（自建+订阅）按展示顺序列出，上下/置顶按钮调整，排第一位即首页默认 */
-function OrderSection({
-  libraries,
-  subCopyIds,
-  onToggleShowOnHome,
-}: {
-  libraries: Library[];
-  subCopyIds: Set<string>;
-  onToggleShowOnHome: (id: string, show: boolean) => void;
-}) {
-  const router = useRouter();
-  const [order, setOrder] = useState<string[]>(libraries.map((l) => l.id));
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-
-  const idsKey = libraries.map((l) => l.id).join(",");
-  useEffect(() => {
-    setOrder(libraries.map((l) => l.id));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idsKey]);
-
-  const byId = new Map(libraries.map((l) => [l.id, l]));
-  const ordered: Library[] = [];
-  for (const id of order) {
-    const lib = byId.get(id);
-    if (lib) ordered.push(lib);
-  }
-  for (const l of libraries) {
-    if (!order.includes(l.id)) ordered.push(l);
-  }
-
-  async function apply(next: string[]) {
-    setOrder(next);
-    setBusy(true);
-    setError("");
-    const res = await saveLibraryOrder(next);
-    setBusy(false);
-    if (!res.ok) {
-      setError(res.message || "保存失败");
-      setOrder(libraries.map((l) => l.id));
-    } else {
-      router.refresh();
-    }
-  }
-
-  function move(id: string, dir: number) {
-    const idx = ordered.findIndex((l) => l.id === id);
-    const nextIdx = idx + dir;
-    if (idx < 0 || nextIdx < 0 || nextIdx >= ordered.length) return;
-    const next = ordered.map((l) => l.id);
-    const tmp = next[idx];
-    next[idx] = next[nextIdx];
-    next[nextIdx] = tmp;
-    void apply(next);
-  }
-
-  function toTop(id: string) {
-    void apply([id, ...ordered.filter((l) => l.id !== id).map((l) => l.id)]);
-  }
-
-  const btn =
-    "shrink-0 rounded-lg bg-gray-100 px-2.5 py-1.5 text-xs text-gray-600 disabled:opacity-40 dark:bg-gray-800 dark:text-gray-300";
-  // 默认展示角标跟到第一个可见的库；全隐藏时回退到第一个（与首页逻辑一致）
-  const defaultIdx = ordered.findIndex((l) => l.show_on_home !== false);
-  const badgeIdx = defaultIdx === -1 ? 0 : defaultIdx;
-  return (
-    <div className="mb-4 rounded-2xl bg-white p-3 dark:bg-gray-900">
-      <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">首页显示顺序</div>
-      <p className="mt-0.5 text-xs text-gray-400">排第一位的库为首页默认展示，点按钮调整顺序；自建库可开关首页显示，订阅库始终显示</p>
-      <div className="mt-2 space-y-1.5">
-        {ordered.map((lib, i) => (
-          <div
-            key={lib.id}
-            className={`flex items-center gap-2 rounded-xl bg-gray-50 px-3 py-2 dark:bg-gray-800/60 ${
-              lib.show_on_home === false ? "opacity-60" : ""
-            }`}
-          >
-            <span className="w-4 shrink-0 text-xs text-gray-400">{i + 1}</span>
-            <span className="min-w-0 flex-1 truncate text-sm text-gray-900 dark:text-gray-100">
-              {lib.name}
-              {subCopyIds.has(lib.id) && <span className="ml-1 opacity-70">📡</span>}
-            </span>
-            {i === badgeIdx && (
-              <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[11px] text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                默认展示
-              </span>
-            )}
-            {/* 订阅库不给开关，始终显示 */}
-            {!subCopyIds.has(lib.id) && (
-              <button
-                onClick={() => onToggleShowOnHome(lib.id, lib.show_on_home === false)}
-                className={`shrink-0 rounded-full px-2.5 py-1.5 text-xs font-medium ${
-                  lib.show_on_home !== false
-                    ? "bg-green-600 text-white"
-                    : "bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-                }`}
-              >
-                {lib.show_on_home !== false ? "显示中" : "已隐藏"}
-              </button>
-            )}
-            <button disabled={busy || i === 0} onClick={() => move(lib.id, -1)} className={btn}>
-              ↑
-            </button>
-            <button
-              disabled={busy || i === ordered.length - 1}
-              onClick={() => move(lib.id, 1)}
-              className={btn}
-            >
-              ↓
-            </button>
-            <button disabled={busy || i === 0} onClick={() => toTop(lib.id)} className={btn}>
-              置顶
-            </button>
-          </div>
-        ))}
-      </div>
-      {error && <p className="mt-2 text-center text-xs text-red-500">{error}</p>}
     </div>
   );
 }
