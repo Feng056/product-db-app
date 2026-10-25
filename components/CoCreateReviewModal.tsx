@@ -10,6 +10,7 @@ import {
   decideSubmission,
   type CoCreateDiff,
 } from "@/actions/co-create";
+import { setCoCreateEnabled } from "@/actions/libraries";
 import { formatDateTime } from "@/lib/utils";
 
 type Overview = Awaited<ReturnType<typeof getCoCreateOverview>>;
@@ -21,11 +22,13 @@ type Overview = Awaited<ReturnType<typeof getCoCreateOverview>>;
 export default function CoCreateReviewModal({
   sourceId,
   sourceName,
+  coCreateEnabled,
   onClose,
   onDone,
 }: {
   sourceId: string;
   sourceName: string;
+  coCreateEnabled: boolean;
   onClose: () => void;
   onDone: (msg: string) => void;
 }) {
@@ -36,6 +39,22 @@ export default function CoCreateReviewModal({
   const [busyId, setBusyId] = useState("");
   const [error, setError] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [coEnabled, setCoEnabled] = useState(coCreateEnabled);
+  const [toggling, setToggling] = useState(false);
+
+  // 开关收进这里：发布后随时可切；关闭后仅已加入的创作者不受影响，其他人不再看到入口
+  async function onToggleCoCreate() {
+    setToggling(true);
+    setError("");
+    const res = await setCoCreateEnabled(sourceId, !coEnabled);
+    setToggling(false);
+    if (res.error) {
+      setError(res.error);
+    } else {
+      setCoEnabled(!coEnabled);
+      router.refresh();
+    }
+  }
 
   const imgUrl = (p: string) =>
     supabase.storage.from("product-images").getPublicUrl(p).data.publicUrl;
@@ -96,6 +115,23 @@ export default function CoCreateReviewModal({
           <button onClick={onClose} className="px-2 text-gray-400">
             ✕
           </button>
+        </div>
+
+        {/* 共同创作开关：点共同创作进来就能切，不用回面板找 */}
+        <div className="mt-4 flex items-center gap-2">
+          <span className="shrink-0 text-xs text-gray-500 dark:text-gray-400">共同创作</span>
+          <button
+            onClick={() => void onToggleCoCreate()}
+            disabled={toggling}
+            className={`rounded-full px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${
+              coEnabled
+                ? "bg-green-600 text-white"
+                : "bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+            }`}
+          >
+            {coEnabled ? "已开启" : "已关闭"}
+          </button>
+          <span className="text-xs text-gray-400">关闭后仅已加入的创作者可见</span>
         </div>
 
         {loading && <p className="mt-4 text-center text-xs text-gray-400">加载中…</p>}

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { renameLibrary, deleteLibrary, requestPublish, unpublishLibrary, setLibraryTimeDisplay, saveLibraryOrder, setCoCreateEnabled } from "@/actions/libraries";
+import { renameLibrary, deleteLibrary, requestPublish, unpublishLibrary, setLibraryTimeDisplay, saveLibraryOrder } from "@/actions/libraries";
 import { pushSubscriptionUpdate, unsubscribeFromLibrary } from "@/actions/shares";
 import PublishDialog from "./PublishDialog";
 import CoCreateReviewModal from "./CoCreateReviewModal";
@@ -29,7 +29,8 @@ export default function LibraryManageList({
   const [pushMsg, setPushMsg] = useState("");
   const [publishLib, setPublishLib] = useState<{ id: string; name: string; isUpdate: boolean } | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [coCreateLib, setCoCreateLib] = useState<{ id: string; name: string } | null>(null);
+  const [coCreateLib, setCoCreateLib] = useState<{ id: string; name: string; coCreateEnabled: boolean } | null>(null);
+  const [removeChoiceId, setRemoveChoiceId] = useState<string | null>(null);
 
   async function onRename(formData: FormData) {
     setError(null);
@@ -90,12 +91,6 @@ export default function LibraryManageList({
   async function onTimeDisplay(id: string, mode: string) {
     setError(null);
     const res = await setLibraryTimeDisplay(id, mode);
-    if (res?.error) setError(res.error);
-  }
-
-  async function onToggleCoCreate(id: string, enabled: boolean) {
-    setError(null);
-    const res = await setCoCreateEnabled(id, enabled);
     if (res?.error) setError(res.error);
   }
 
@@ -202,23 +197,6 @@ export default function LibraryManageList({
                     <option value="updated">仅显示更新时间</option>
                   </select>
                 </div>
-                {/* 共同创作开关：发布后随时可切；关闭后仅已加入的创作者不受影响，其他人不再看到入口 */}
-                {lib.publish_status === "published" && (
-                  <div className="flex items-center gap-2">
-                    <span className="shrink-0 text-xs text-gray-500 dark:text-gray-400">共同创作</span>
-                    <button
-                      onClick={() => onToggleCoCreate(lib.id, !lib.co_create_enabled)}
-                      className={`rounded-full px-3 py-1.5 text-xs font-medium ${
-                        lib.co_create_enabled
-                          ? "bg-green-600 text-white"
-                          : "bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-                      }`}
-                    >
-                      {lib.co_create_enabled ? "已开启" : "已关闭"}
-                    </button>
-                    <span className="text-xs text-gray-400">关闭后仅已加入的创作者可见</span>
-                  </div>
-                )}
                 {/* 操作按钮 */}
                 <div className="flex flex-wrap gap-2">
                   {(subCounts[lib.id] || 0) > 0 && (
@@ -238,25 +216,54 @@ export default function LibraryManageList({
                       发布
                     </button>
                   )}
-                  {lib.publish_status === "published" && (
+                  {lib.publish_status === "pending" && (
                     <button
-                      onClick={() => onRequestPublish(lib.id, lib.name, true)}
-                      className="rounded-xl bg-green-50 px-5 py-2.5 text-sm text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                    >
-                      申请更新
-                    </button>
-                  )}
-                  {(lib.publish_status === "pending" || lib.publish_status === "published") && (
-                    <button
-                      onClick={() => onUnpublish(lib.id, lib.name, lib.publish_status === "published")}
+                      onClick={() => onUnpublish(lib.id, lib.name, false)}
                       className="rounded-xl bg-amber-50 px-5 py-2.5 text-sm text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
                     >
-                      {lib.publish_status === "pending" ? "撤回申请" : "下架"}
+                      撤回申请
                     </button>
                   )}
+                  {/* 下架与删除合为一个入口：点开再选仅下架（保留库和产品）或彻底删除 */}
+                  {lib.publish_status === "published" &&
+                    (removeChoiceId === lib.id ? (
+                      <>
+                        <button
+                          onClick={() => {
+                            setRemoveChoiceId(null);
+                            onUnpublish(lib.id, lib.name, true);
+                          }}
+                          className="rounded-xl bg-amber-50 px-5 py-2.5 text-sm text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                        >
+                          仅下架
+                        </button>
+                        <button
+                          onClick={() => {
+                            setRemoveChoiceId(null);
+                            onDelete(lib.id, lib.name);
+                          }}
+                          className="rounded-xl bg-red-50 px-5 py-2.5 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400"
+                        >
+                          彻底删除
+                        </button>
+                        <button
+                          onClick={() => setRemoveChoiceId(null)}
+                          className="rounded-xl bg-gray-100 px-5 py-2.5 text-sm text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                        >
+                          取消
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => setRemoveChoiceId(lib.id)}
+                        className="rounded-xl bg-red-50 px-5 py-2.5 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400"
+                      >
+                        下架 / 删除
+                      </button>
+                    ))}
                   {(lib.publish_status === "published" || pendingCo > 0) && (
                     <button
-                      onClick={() => setCoCreateLib({ id: lib.id, name: lib.name })}
+                      onClick={() => setCoCreateLib({ id: lib.id, name: lib.name, coCreateEnabled: lib.co_create_enabled })}
                       className="rounded-xl bg-purple-50 px-5 py-2.5 text-sm text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
                     >
                       共同创作{pendingCo > 0 ? `（${pendingCo} 待审核）` : ""}
@@ -268,12 +275,14 @@ export default function LibraryManageList({
                   >
                     改名
                   </button>
-                  <button
-                    onClick={() => onDelete(lib.id, lib.name)}
-                    className="rounded-xl bg-red-50 px-5 py-2.5 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400"
-                  >
-                    删除
-                  </button>
+                  {lib.publish_status !== "published" && (
+                    <button
+                      onClick={() => onDelete(lib.id, lib.name)}
+                      className="rounded-xl bg-red-50 px-5 py-2.5 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400"
+                    >
+                      删除
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -325,6 +334,7 @@ export default function LibraryManageList({
         <CoCreateReviewModal
           sourceId={coCreateLib.id}
           sourceName={coCreateLib.name}
+          coCreateEnabled={coCreateLib.coCreateEnabled}
           onClose={() => setCoCreateLib(null)}
           onDone={(msg) => {
             setPushMsg(msg);
