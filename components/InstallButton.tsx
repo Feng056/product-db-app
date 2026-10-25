@@ -11,8 +11,9 @@ type InstallPromptEvent = Event & {
  * 一键保存到桌面（PWA 安装）：
  * 安卓 Chrome 有安装事件时直接弹安装框；苹果手机没有程序化安装入口，点按钮显示三步操作提示；
  * 已经装到桌面时显示已在桌面。苹果/安卓/桌面浏览器都能点，不会点完没反应。
+ * 位置：未安装时放在设置页顶部（显眼）；已安装后顶部的不显示，改由页面底部的实例显示。
  */
-export default function InstallButton() {
+export default function InstallButton({ showWhenInstalled = false }: { showWhenInstalled?: boolean }) {
   const [deferred, setDeferred] = useState<InstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
@@ -60,6 +61,8 @@ export default function InstallButton() {
     }
     setMsg("请在手机浏览器中打开本页，再用浏览器的安装 / 添加到主屏幕功能");
   }
+
+  if (showWhenInstalled ? !installed : installed) return null;
 
   return (
     <div className="rounded-2xl bg-white dark:bg-gray-900 p-4">

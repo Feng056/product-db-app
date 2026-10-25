@@ -204,6 +204,11 @@ export default async function SettingsPage() {
             isShutdown={isShutdown}
           />
         )}
+
+        {/* 已保存到桌面后，按钮挪到最下方，不再占顶部位置 */}
+        <section className="mt-6">
+          <InstallButton showWhenInstalled />
+        </section>
       </main>
       <BottomNav isAdmin={isAdmin} />
     </>
