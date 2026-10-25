@@ -31,10 +31,10 @@ export default function CreateInviteCodeForm({ groups }: { groups: { id: string;
       />
       <input
         name="sourceLabel"
-        required
-        placeholder="来源标注 *（如 展会/朋友介绍/微信群）"
+        placeholder="来源标注（留空默认使用分组名）"
         className={inputCls}
       />
+      <p className="-mt-2 text-xs text-gray-400">留空则默认用所选分组名，不选分组则为「未分组」，创建后可在列表里改名</p>
       <div className="flex items-center gap-2">
         <input
           name="maxUses"

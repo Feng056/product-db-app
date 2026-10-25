@@ -31,11 +31,19 @@ export async function createInviteCode(formData: FormData): Promise<ActionResult
   const { supabase, user } = await requireAdmin();
 
   const customCode = String(formData.get("code") || "").trim().toUpperCase();
-  const sourceLabel = String(formData.get("sourceLabel") || "").trim();
+  let sourceLabel = String(formData.get("sourceLabel") || "").trim();
   const maxUses = Math.max(1, parseInt(String(formData.get("maxUses") || "1"), 10) || 1);
   const groupId = String(formData.get("groupId") || "").trim() || null;
 
-  if (!sourceLabel) return { error: "请填写来源标注" };
+  // 来源标注留空时默认用分组名，不选分组则为「未分组」
+  if (!sourceLabel) {
+    if (groupId) {
+      const { data: g } = await supabase.from("groups").select("name").eq("id", groupId).single();
+      sourceLabel = (g as { name: string } | null)?.name || "未分组";
+    } else {
+      sourceLabel = "未分组";
+    }
+  }
 
   const code = customCode || generateInviteCode("INVITE");
 
@@ -74,6 +82,17 @@ export async function deleteInviteCode(id: string): Promise<ActionResult> {
   const { supabase } = await requireAdmin();
   const { error } = await supabase.from("invite_codes").delete().eq("id", id);
   if (error) return { error: `删除失败：${error.message}（可能已有用户使用该码）` };
+  revalidatePath("/settings");
+  return {};
+}
+
+/** 修改邀请码来源标注（即邀请码的显示名字，用户行的「来源」会同步变） */
+export async function updateInviteCodeLabel(id: string, label: string): Promise<ActionResult> {
+  const { supabase } = await requireAdmin();
+  const name = label.trim();
+  if (!name) return { error: "名称不能为空" };
+  const { error } = await supabase.from("invite_codes").update({ source_label: name }).eq("id", id);
+  if (error) return { error: error.message };
   revalidatePath("/settings");
   return {};
 }

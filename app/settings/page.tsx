@@ -37,13 +37,14 @@ export default async function SettingsPage() {
   let allTags: string[] = [];
   let memberCounts: Record<string, number> = {};
   let subCountsByUser: Record<string, number> = {};
+  let subscriberCountsByUser: Record<string, number> = {};
   let pendingPublish: { id: string; name: string; owner_name: string; product_count: number; publish_requested_at: string }[] = [];
   let pendingRegs: { id: string; username: string; display_name: string; registration_note: string; created_at: string }[] = [];
   let pendingResets: { id: string; username: string; display_name: string; note: string | null; created_at: string }[] = [];
   let isShutdown = false;
   if (isAdmin) {
     // 并行拉取管理数据
-    const [usersRes, codesRes, groupsRes, tagsRes, subRowsRes] = await Promise.all([
+    const [usersRes, codesRes, groupsRes, tagsRes, subRowsRes, libsRes] = await Promise.all([
       supabase
         .from("profiles")
         .select("id, email, username, display_name, is_admin, is_active, tags, group_id, created_at, invite_codes(source_label), groups(name)")
@@ -57,7 +58,8 @@ export default async function SettingsPage() {
         .select("*")
         .order("created_at", { ascending: true }),
       supabase.rpc("get_all_user_tags"),
-      supabase.from("library_subscriptions").select("subscriber_id"),
+      supabase.from("library_subscriptions").select("library_id, subscriber_id"),
+      supabase.from("libraries").select("id, user_id"),
     ]);
     userList = ((usersRes.data || []) as unknown as UserRow[]);
     codeList = (codesRes.data || []) as InviteCode[];
@@ -71,6 +73,22 @@ export default async function SettingsPage() {
       const sid = (s as { subscriber_id: string }).subscriber_id;
       subCountsByUser[sid] = (subCountsByUser[sid] || 0) + 1;
     }
+    // 各用户被订阅人数（按订阅者去重）
+    const ownerByLib = new Map<string, string>();
+    for (const l of (libsRes.data || []) as { id: string; user_id: string }[]) {
+      ownerByLib.set(l.id, l.user_id);
+    }
+    const subscribersByOwner = new Map<string, Set<string>>();
+    for (const s of subRowsRes.data || []) {
+      const row = s as { library_id: string; subscriber_id: string };
+      const owner = ownerByLib.get(row.library_id);
+      if (!owner) continue;
+      if (!subscribersByOwner.has(owner)) subscribersByOwner.set(owner, new Set<string>());
+      subscribersByOwner.get(owner)!.add(row.subscriber_id);
+    }
+    subscribersByOwner.forEach((set, owner) => {
+      subscriberCountsByUser[owner] = set.size;
+    });
     const { getPendingPublishRequests } = await import("@/actions/libraries");
     const { getPendingRegistrations, getPendingPasswordResets, getShutdownStatus } = await import("@/actions/admin");
     const [pub, regs, resets, shutdown] = await Promise.all([
@@ -163,6 +181,7 @@ export default async function SettingsPage() {
             adminId={user.id}
             memberCounts={memberCounts}
             subCountsByUser={subCountsByUser}
+            subscriberCountsByUser={subscriberCountsByUser}
             codeList={codeList}
             pendingPublish={pendingPublish}
             pendingRegs={pendingRegs}

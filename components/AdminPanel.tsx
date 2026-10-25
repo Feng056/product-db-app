@@ -23,6 +23,7 @@ type Props = {
   adminId: string;
   memberCounts: Record<string, number>;
   subCountsByUser: Record<string, number>;
+  subscriberCountsByUser: Record<string, number>;
   codeList: InviteCode[];
   pendingPublish: { id: string; name: string; owner_name: string; product_count: number; publish_requested_at: string }[];
   pendingRegs: { id: string; username: string; display_name: string; registration_note: string; created_at: string }[];
@@ -121,6 +122,7 @@ export default function AdminPanel(props: Props) {
                   allTags={allTags}
                   adminId={adminId}
                   subCountsByUser={props.subCountsByUser}
+                  subscriberCountsByUser={props.subscriberCountsByUser}
                 />
               ) : userTab === "groups" ? (
                 <GroupManager groups={groupList} memberCounts={memberCounts} />
