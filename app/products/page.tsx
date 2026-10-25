@@ -26,8 +26,16 @@ export default async function ProductsPage({ searchParams }: Props) {
 
   // 产品库：无则自动建默认库；lib 参数非法则回退到第一个
   const libraries = await ensureDefaultLibrary();
+  // 首页切换条：show_on_home=false 的库不显示（字段缺失时默认显示）；全隐藏时回退到全部，避免首页无库可选
+  const homeLibraries = libraries.filter((l) => l.show_on_home !== false);
+  const displayLibraries = homeLibraries.length > 0 ? homeLibraries : libraries;
   const currentId =
-    libraries.find((l) => l.id === searchParams.lib)?.id ?? libraries[0].id;
+    libraries.find((l) => l.id === searchParams.lib)?.id ?? displayLibraries[0].id;
+  // 直达链接打开了被隐藏的库时，切换条里仍保留当前库，保证看得出在哪个库
+  const currentLib = libraries.find((l) => l.id === currentId)!;
+  const barLibraries = displayLibraries.some((l) => l.id === currentId)
+    ? displayLibraries
+    : [...displayLibraries, currentLib];
 
   // 是否为订阅副本（只读）+ 所有订阅副本（并行查询）
   const { data: allSubs } = await supabase
@@ -319,24 +327,31 @@ export default async function ProductsPage({ searchParams }: Props) {
     <>
       <main className="page-container">
         <div className="flex items-center justify-between gap-2">
-          <h1 className="min-w-0 flex-1 truncate text-xl font-bold">
-            {libraries.find((l) => l.id === currentId)?.name || "产品库"}
-          </h1>
+          {/* 库切换条挪到标题位置：当前库就是蓝色药片，不再单占一行标题 */}
+          <div className="min-w-0 flex-1">
+            <LibraryBar
+              libraries={barLibraries}
+              currentId={currentId}
+              baseParams={baseParams}
+              subCopyIds={subCopyIds}
+              updatedCopyIds={updatedCopyIds}
+            />
+          </div>
           {headerDisplay === "avatar" &&
             (headerAvatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={headerAvatarUrl}
                 alt="头像"
-                className="h-9 w-9 rounded-full object-cover"
+                className="h-9 w-9 shrink-0 rounded-full object-cover"
               />
             ) : (
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-600">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-600">
                 {(profile?.display_name || profile?.email || "我").slice(0, 1)}
               </div>
             ))}
           {headerDisplay === "name" && (
-            <span className="max-w-[40%] truncate text-sm text-gray-500 dark:text-gray-400 ">
+            <span className="max-w-[40%] shrink-0 truncate text-sm text-gray-500 dark:text-gray-400 ">
               {profile?.display_name || profile?.email}
             </span>
           )}
@@ -344,15 +359,6 @@ export default async function ProductsPage({ searchParams }: Props) {
 
         {/* 搜索栏 */}
         <SearchBox initial={query} mode={searchMode} baseHref={searchBaseHref} />
-
-        {/* 产品库切换 */}
-        <LibraryBar
-          libraries={libraries}
-          currentId={currentId}
-          baseParams={baseParams}
-          subCopyIds={subCopyIds}
-          updatedCopyIds={updatedCopyIds}
-        />
 
         {/* 统一筛选：分类（单选）+ 标签（多选），默认显示一排 */}
         {(categories.length > 0 || tags.length > 0) && (

@@ -6,6 +6,7 @@ import { randomBytes } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import type { SpecItem } from "@/lib/types";
 import { copyProductsToLibrary, syncProductsToLibrary } from "@/lib/copy-products";
+import { hideEmptyOwnLibraries } from "@/lib/library-visibility";
 import { prependLibraryOrder } from "@/lib/library-order";
 
 type ActionResult = { error?: string; token?: string };
@@ -188,6 +189,8 @@ export async function subscribeToLibraries(
   if (libraryIds.length > 0) {
     await prependLibraryOrder(supabase, user.id, libraryIds);
   }
+  // 订阅后自建的空库默认不在首页显示（用户可在库管理里再打开）
+  await hideEmptyOwnLibraries(supabase, user.id);
   revalidatePath("/products");
   return { subscribed, libraryIds };
 }
@@ -394,6 +397,8 @@ export async function subscribeToPublished(
     subscriber_id: user.id,
   });
 
+  // 订阅后自建的空库默认不在首页显示（用户可在库管理里再打开）
+  await hideEmptyOwnLibraries(supabase, user.id);
   revalidatePath("/products");
   return { libraryId: newLib.id };
 }

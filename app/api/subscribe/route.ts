@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { copyProductsToLibrary } from "@/lib/copy-products";
+import { hideEmptyOwnLibraries } from "@/lib/library-visibility";
 import { prependLibraryOrder } from "@/lib/library-order";
 
 export const dynamic = "force-dynamic";
@@ -107,6 +108,8 @@ export async function POST(req: NextRequest) {
         // 新订阅的库排到显示顺序第一位，返回首页默认就是它
         await prependLibraryOrder(supabase, user.id, [newLib.id]);
 
+        // 订阅后自建的空库默认不在首页显示（用户可在库管理里再打开）
+        await hideEmptyOwnLibraries(supabase, user.id);
         revalidatePath("/products");
         send({ type: "done", libraryId: newLib.id });
       } catch {

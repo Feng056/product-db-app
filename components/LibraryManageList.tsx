@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { renameLibrary, deleteLibrary, requestPublish, unpublishLibrary, setLibraryTimeDisplay, saveLibraryOrder } from "@/actions/libraries";
+import { renameLibrary, deleteLibrary, requestPublish, unpublishLibrary, setLibraryTimeDisplay, saveLibraryOrder, setShowOnHome } from "@/actions/libraries";
 import { pushSubscriptionUpdate, unsubscribeFromLibrary } from "@/actions/shares";
 import PublishDialog from "./PublishDialog";
 import CoCreateReviewModal from "./CoCreateReviewModal";
@@ -111,6 +111,12 @@ export default function LibraryManageList({
     if (res?.error) setError(res.error);
   }
 
+  async function onToggleShowOnHome(id: string, show: boolean) {
+    setError(null);
+    const res = await setShowOnHome(id, show);
+    if (res?.error) setError(res.error);
+  }
+
   function publishBadge(status?: string) {
     if (status === "published")
       return <span className="ml-1 rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400">已发布</span>;
@@ -180,13 +186,25 @@ export default function LibraryManageList({
               </div>
               {isSubCopy ? (
                 /* 订阅副本：不可改名/发布，只能取消订阅（整库删除） */
-                <button
-                  onClick={() => onUnsubscribe(lib.id, lib.name)}
-                  disabled={unsubscribingId === lib.id}
-                  className="shrink-0 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400 disabled:opacity-50"
-                >
-                  {unsubscribingId === lib.id ? "取消中…" : "取消订阅"}
-                </button>
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    onClick={() => onToggleShowOnHome(lib.id, lib.show_on_home === false)}
+                    className={`rounded-lg px-2.5 py-1.5 text-xs font-medium ${
+                      lib.show_on_home !== false
+                        ? "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                        : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+                    }`}
+                  >
+                    {lib.show_on_home !== false ? "首页显示中" : "首页已隐藏"}
+                  </button>
+                  <button
+                    onClick={() => onUnsubscribe(lib.id, lib.name)}
+                    disabled={unsubscribingId === lib.id}
+                    className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400 disabled:opacity-50"
+                  >
+                    {unsubscribingId === lib.id ? "取消中…" : "取消订阅"}
+                  </button>
+                </div>
               ) : (
                 /* 自建库：操作收进二级菜单 */
                 <button
@@ -213,6 +231,21 @@ export default function LibraryManageList({
                     <option value="created">仅显示创建时间</option>
                     <option value="updated">仅显示更新时间</option>
                   </select>
+                </div>
+                {/* 首页显示：关掉后首页切换条里不再显示，直达链接仍可打开 */}
+                <div className="flex items-center gap-2">
+                  <span className="shrink-0 text-xs text-gray-500 dark:text-gray-400">首页显示</span>
+                  <button
+                    onClick={() => onToggleShowOnHome(lib.id, lib.show_on_home === false)}
+                    className={`rounded-full px-3 py-1.5 text-xs font-medium ${
+                      lib.show_on_home !== false
+                        ? "bg-green-600 text-white"
+                        : "bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                    }`}
+                  >
+                    {lib.show_on_home !== false ? "显示中" : "已隐藏"}
+                  </button>
+                  <span className="text-xs text-gray-400">关闭后首页切换条里不再显示</span>
                 </div>
                 {/* 操作按钮 */}
                 <div className="flex flex-wrap gap-2">

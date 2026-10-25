@@ -52,6 +52,13 @@ export default function InstallButton({ showWhenInstalled = false }: { showWhenI
     const onInstalled = () => {
       setInstalled(true);
       setDeferred(null);
+      // 系统确认安装后同样持久化，避免刷新后上方卡片重现
+      try {
+        window.localStorage.setItem("pwa-added-manually", "1");
+      } catch {
+        /* 忽略 */
+      }
+      setManualAdded(true);
     };
     window.addEventListener("beforeinstallprompt", onPrompt);
     window.addEventListener("appinstalled", onInstalled);
@@ -68,6 +75,13 @@ export default function InstallButton({ showWhenInstalled = false }: { showWhenI
       const choice = await deferred.userChoice;
       if (choice.outcome === "accepted") {
         setInstalled(true);
+        // 确认即视为已添加，持久化：刷新/重进后上方卡片不再冒出来（下方留已在桌面记录，可清除）
+        try {
+          window.localStorage.setItem("pwa-added-manually", "1");
+        } catch {
+          /* 忽略 */
+        }
+        setManualAdded(true);
       } else {
         setMsg("已取消，随时可以再点");
       }

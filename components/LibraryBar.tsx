@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { Library } from "@/lib/types";
 
-/** 产品库切换条：横向滚动 pills（显示顺序在仓库管理里调整） */
+/** 产品库切换条：横向滚动 pills（显示顺序在仓库管理里调整；是否显示也在仓库管理里选） */
 export default function LibraryBar({
   libraries,
   currentId,
@@ -20,10 +20,10 @@ export default function LibraryBar({
   const hrefFor = (id: string) =>
     `/products?lib=${id}${baseParams ? `&${baseParams}` : ""}`;
 
-  if (libraries.length <= 1) return null;
+  if (libraries.length === 0) return null;
 
   return (
-    <div className="mt-3">
+    <div>
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
         {libraries.map((lib) => (
           <Link

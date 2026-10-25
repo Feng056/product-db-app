@@ -10,6 +10,7 @@ export type Library = {
   time_display?: string;
   publish_categories?: string[] | null;
   co_create_enabled?: boolean;
+  show_on_home?: boolean;
 };
 
 /** 规格参数：动态 key-value 列表 */

@@ -284,6 +284,29 @@ export async function setCoCreateEnabled(
   return {};
 }
 
+/** 库管理里自选是否在首页显示（仅本人库；关闭后首页切换条里不再显示，直达链接仍可打开） */
+export async function setShowOnHome(
+  libraryId: string,
+  show: boolean
+): Promise<ActionResult> {
+  const { supabase, user } = await requireUser();
+  const { data: lib } = await supabase
+    .from("libraries")
+    .select("id")
+    .eq("id", libraryId)
+    .eq("user_id", user.id)
+    .single();
+  if (!lib) return { error: "无权限" };
+  const { error } = await supabase
+    .from("libraries")
+    .update({ show_on_home: show })
+    .eq("id", libraryId);
+  if (error) return { error: "设置失败，稍后再试" };
+  revalidatePath("/products");
+  revalidatePath("/warehouse");
+  return {};
+}
+
 /** 获取某库的去重分类列表（发布时勾选用） */
 export async function getLibraryCategories(libraryId: string): Promise<string[]> {
   const { supabase, user } = await requireUser();
