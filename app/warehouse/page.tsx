@@ -89,6 +89,7 @@ export default async function WarehousePage() {
             subCounts={subCounts}
             subCopyIds={subCopyIds}
             coCreateCounts={coCreateCounts}
+            isAdmin={profile?.is_admin === true}
           />
         </section>
       </main>

@@ -15,12 +15,14 @@ export default function LibraryManageList({
   subCounts = {},
   subCopyIds = new Set<string>(),
   coCreateCounts = {},
+  isAdmin = false,
 }: {
   libraries: Library[];
   counts: Record<string, number>;
   subCounts?: Record<string, number>;
   subCopyIds?: Set<string>;
   coCreateCounts?: Record<string, { applications: number; submissions: number }>;
+  isAdmin?: boolean;
 }) {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -53,11 +55,26 @@ export default function LibraryManageList({
     if (res?.error) setError(res.error);
   }
 
-  async function onPush(id: string, name: string, count: number) {
-    if (!window.confirm(`将「${name}」的最新内容推送给 ${count} 个订阅者？对方的副本将被覆盖。`)) return;
-    setPushingId(id);
+  async function onPush(lib: Library, count: number) {
+    // 非管理员发布者：点推送即提交审核，管理端通过后自动推送，不直接同步
+    if (!isAdmin) {
+      if (!window.confirm(`将「${lib.name}」的最新内容提交审核？管理端通过后自动推送给 ${count} 个订阅者。`)) return;
+      setPushingId(lib.id);
+      setPushMsg("");
+      const res = await requestPublish(lib.id, lib.publish_categories ?? null, lib.co_create_enabled === true);
+      setPushingId(null);
+      if (res.error) {
+        setError(res.error);
+      } else {
+        setPushMsg(res.message || "已提交审核");
+        setTimeout(() => setPushMsg(""), 3000);
+      }
+      return;
+    }
+    if (!window.confirm(`将「${lib.name}」的最新内容推送给 ${count} 个订阅者？对方的副本将被覆盖。`)) return;
+    setPushingId(lib.id);
     setPushMsg("");
-    const res = await pushSubscriptionUpdate(id);
+    const res = await pushSubscriptionUpdate(lib.id);
     setPushingId(null);
     if (res.error) {
       setError(res.error);
@@ -201,7 +218,7 @@ export default function LibraryManageList({
                 <div className="flex flex-wrap gap-2">
                   {(subCounts[lib.id] || 0) > 0 && (
                     <button
-                      onClick={() => onPush(lib.id, lib.name, subCounts[lib.id])}
+                      onClick={() => onPush(lib, subCounts[lib.id])}
                       disabled={pushingId === lib.id}
                       className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50"
                     >
@@ -263,7 +280,7 @@ export default function LibraryManageList({
                     ))}
                   {(lib.publish_status === "published" || pendingCo > 0) && (
                     <button
-                      onClick={() => setCoCreateLib({ id: lib.id, name: lib.name, coCreateEnabled: lib.co_create_enabled })}
+                      onClick={() => setCoCreateLib({ id: lib.id, name: lib.name, coCreateEnabled: lib.co_create_enabled === true })}
                       className="rounded-xl bg-purple-50 px-5 py-2.5 text-sm text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
                     >
                       共同创作{pendingCo > 0 ? `（${pendingCo} 待审核）` : ""}
