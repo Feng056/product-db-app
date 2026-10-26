@@ -7,6 +7,8 @@ export type Library = {
   updated_at: string;
   publish_status?: string;
   publish_requested_at?: string | null;
+  /** 最后一次推送时间（推送结束时写在源库行上；订阅者详情页统一显示这个时间） */
+  last_pushed_at?: string | null;
   time_display?: string;
   publish_categories?: string[] | null;
   co_create_enabled?: boolean;

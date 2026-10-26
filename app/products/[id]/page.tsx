@@ -68,9 +68,10 @@ export default async function ProductDetailPage({
   // 共同创作者且无待审核提交 → 可编辑；否则订阅副本只读
   let canEdit = !isSubCopy;
   let coBadge = "";
+  let srcLastPushedAt: string | null = null;
   if (isSubCopy) {
     const sourceId = (sub[0] as { library_id: string }).library_id;
-    const [ccRes, pendRes] = await Promise.all([
+    const [ccRes, pendRes, srcLibRes] = await Promise.all([
       supabase
         .from("library_co_creators")
         .select("status")
@@ -83,11 +84,14 @@ export default async function ProductDetailPage({
         .eq("copy_library_id", product.library_id)
         .eq("status", "pending")
         .limit(1),
+      supabase.from("libraries").select("last_pushed_at").eq("id", sourceId).single(),
     ]);
     const approved = (ccRes.data as { status?: string } | null)?.status === "approved";
     const hasPending = !!pendRes.data && pendRes.data.length > 0;
     canEdit = approved && !hasPending;
     coBadge = approved ? (hasPending ? "修改已提交 · 待审核" : "共同创作 · 可编辑") : "";
+    srcLastPushedAt =
+      (srcLibRes.data as { last_pushed_at?: string | null } | null)?.last_pushed_at || null;
   }
   const isReadOnly = !canEdit;
 
@@ -96,9 +100,12 @@ export default async function ProductDetailPage({
   const showCreated = timeDisplay !== "updated";
   const showUpdated = timeDisplay !== "created";
 
-  // 订阅者看到的更新时间 = 最后一次推送时间；没推送过时退回发布者改它的时间。
+  // 订阅者看到的更新时间 = 库最后一次推送时间，全部产品统一显示这一个时间；
+  // 从未推送过时退回行级推送时间 / 发布者改它的时间。
   // 可编辑的视图（自建库、共同创作者）仍显示最后修改时间。
-  const displayUpdatedAt = canEdit ? product.updated_at : product.pushed_at || product.updated_at;
+  const displayUpdatedAt = canEdit
+    ? product.updated_at
+    : srcLastPushedAt || product.pushed_at || product.updated_at;
 
   const imageUrls: Record<string, string> = {};
   for (const p of product.images || []) {

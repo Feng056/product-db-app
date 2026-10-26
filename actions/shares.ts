@@ -227,6 +227,12 @@ export async function pushToAllSubscribers(
       .eq("id", s.id);
     updated++;
   }
+  // 记下这次推送时间：订阅者详情页全部产品统一显示这个时间。
+  // 刷新（拉取）不走这里，所以刷新不会改掉它。
+  await supabase
+    .from("libraries")
+    .update({ last_pushed_at: new Date().toISOString() })
+    .eq("id", sourceLibraryId);
   return updated;
 }
 
