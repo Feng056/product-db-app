@@ -424,3 +424,237 @@ export async function batchUpdatePrice(
   revalidatePath("/products");
   return { updated: (updated || []).length };
 }
+
+/** 分类/标签管理专用校验：必须是调用者自己的自建库，订阅副本一律不可管理 */
+async function assertLibraryManageable(
+  supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
+  userId: string,
+  libraryId: string
+): Promise<string | null> {
+  const { data: lib } = await supabase
+    .from("libraries")
+    .select("user_id")
+    .eq("id", libraryId)
+    .single();
+  if (!lib || lib.user_id !== userId) return "只能管理自己的产品库";
+  return assertLibraryNotCopy(supabase, userId, libraryId);
+}
+
+type NameCount = { name: string; count: number };
+
+/**
+ * 分类/标签统计（管理页用）：
+ * 分类按产品行统计，空分类归入“未分类”；标签按产品统计，
+ * 同一产品多行同值标签只算一次。分页拉取，库大也不丢行。
+ */
+export async function getCategoryTagStats(libraryId: string): Promise<{
+  categories: NameCount[];
+  tags: NameCount[];
+  error?: string;
+}> {
+  const { supabase, user } = await requireUser();
+  if (!libraryId) return { categories: [], tags: [], error: "请先选择产品库" };
+  const manageableErr = await assertLibraryManageable(supabase, user.id, libraryId);
+  if (manageableErr) return { categories: [], tags: [], error: manageableErr };
+  const catCount = new Map<string, number>();
+  const tagCount = new Map<string, number>();
+  const pageSize = 1000;
+  let from = 0;
+  for (;;) {
+    const { data, error } = await supabase
+      .from("products")
+      .select("category, specs")
+      .eq("library_id", libraryId)
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (error) return { categories: [], tags: [], error: error.message };
+    for (const r of data || []) {
+      const row = r as { category?: string | null; specs?: SpecItem[] | null };
+      const bucket = row.category || "未分类";
+      catCount.set(bucket, (catCount.get(bucket) || 0) + 1);
+      const seen = new Set<string>();
+      for (const s of row.specs || []) {
+        if (s && s.key === "标签" && s.value && !seen.has(s.value)) {
+          seen.add(s.value);
+          tagCount.set(s.value, (tagCount.get(s.value) || 0) + 1);
+        }
+      }
+    }
+    if (!data || data.length < pageSize) break;
+    from += pageSize;
+  }
+  const byCountThenName = (a: NameCount, b: NameCount) =>
+    b.count - a.count || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
+  const categories: NameCount[] = [];
+  const tags: NameCount[] = [];
+  catCount.forEach((count, name) => {
+    categories.push({ name, count });
+  });
+  tagCount.forEach((count, name) => {
+    tags.push({ name, count });
+  });
+  categories.sort(byCountThenName);
+  tags.sort(byCountThenName);
+  return { categories, tags };
+}
+
+/**
+ * 分类改名：批量改该分类下所有产品的 category。
+ * 改成已存在的名字即合并。更新时间由数据库触发器正常盖，不手动处理。
+ */
+export async function renameCategory(
+  libraryId: string,
+  oldName: string,
+  newName: string
+): Promise<ActionResult> {
+  const { supabase, user } = await requireUser();
+  const o = oldName.trim();
+  const n = newName.trim();
+  if (!o || !n) return { error: "分类名不能为空" };
+  if (o === n) return { error: "新名字和原来一样" };
+  const manageableErr = await assertLibraryManageable(supabase, user.id, libraryId);
+  if (manageableErr) return { error: manageableErr };
+  // “未分类”桶包含 category = '未分类' 或空值的行
+  const match = o === "未分类" ? ["未分类", ""] : [o];
+  const { error } = await supabase
+    .from("products")
+    .update({ category: n })
+    .eq("library_id", libraryId)
+    .eq("user_id", user.id)
+    .in("category", match);
+  if (error) return { error: error.message };
+  revalidatePath("/products");
+  revalidatePath("/products/new");
+  return {};
+}
+
+/**
+ * 分类删除：该分类下所有产品变为“未分类”，不删产品。
+ * “未分类”本身不可删除（它就是“没有分类”的意思）。
+ */
+export async function deleteCategory(
+  libraryId: string,
+  name: string
+): Promise<ActionResult> {
+  const { supabase, user } = await requireUser();
+  const n = name.trim();
+  if (!n) return { error: "分类名不能为空" };
+  if (n === "未分类") return { error: "“未分类”不可删除，它表示没有分类" };
+  const manageableErr = await assertLibraryManageable(supabase, user.id, libraryId);
+  if (manageableErr) return { error: manageableErr };
+  const { error } = await supabase
+    .from("products")
+    .update({ category: "未分类" })
+    .eq("library_id", libraryId)
+    .eq("user_id", user.id)
+    .eq("category", n);
+  if (error) return { error: error.message };
+  revalidatePath("/products");
+  revalidatePath("/products/new");
+  return {};
+}
+
+/**
+ * 标签改名：批量改所有含该标签的产品的 specs，把 key 为“标签”且 value 为旧值的行
+ * 改成新值（同一产品多行同值全改）。改成已存在的名字即合并。
+ * 只动这些行，其他规格不动；更新时间由数据库触发器正常盖。
+ */
+export async function renameTag(
+  libraryId: string,
+  oldName: string,
+  newName: string
+): Promise<ActionResult> {
+  const { supabase, user } = await requireUser();
+  const o = oldName;
+  const n = newName.trim();
+  if (!o || !n) return { error: "标签名不能为空" };
+  if (o === n) return { error: "新名字和原来一样" };
+  const manageableErr = await assertLibraryManageable(supabase, user.id, libraryId);
+  if (manageableErr) return { error: manageableErr };
+  const pageSize = 1000;
+  let from = 0;
+  for (;;) {
+    const { data, error } = await supabase
+      .from("products")
+      .select("id, specs")
+      .eq("library_id", libraryId)
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (error) return { error: error.message };
+    for (const r of data || []) {
+      const specs = (r as { specs?: SpecItem[] | null }).specs || [];
+      if (!specs.some((s) => s && s.key === "标签" && s.value === o)) continue;
+      const renamed = specs.map((s) =>
+        s && s.key === "标签" && s.value === o ? { ...s, value: n } : s
+      );
+      // 合并去重：该产品若原本已有目标标签，改名后只保留一行，不留重复
+      let kept = false;
+      const next = renamed.filter((s) => {
+        if (s && s.key === "标签" && s.value === n) {
+          if (kept) return false;
+          kept = true;
+        }
+        return true;
+      });
+      const { error: upErr } = await supabase
+        .from("products")
+        .update({ specs: next })
+        .eq("id", (r as { id: string }).id)
+        .eq("user_id", user.id);
+      if (upErr) return { error: upErr.message };
+    }
+    if (!data || data.length < pageSize) break;
+    from += pageSize;
+  }
+  revalidatePath("/products");
+  revalidatePath("/products/new");
+  return {};
+}
+
+/**
+ * 标签删除：删掉所有含该标签的产品的“标签”行，只删这一行 spec，
+ * 不动其他规格，不删产品。更新时间由数据库触发器正常盖。
+ */
+export async function deleteTag(
+  libraryId: string,
+  name: string
+): Promise<ActionResult> {
+  const { supabase, user } = await requireUser();
+  const n = name;
+  if (!n) return { error: "标签名不能为空" };
+  const manageableErr = await assertLibraryManageable(supabase, user.id, libraryId);
+  if (manageableErr) return { error: manageableErr };
+  const pageSize = 1000;
+  let from = 0;
+  for (;;) {
+    const { data, error } = await supabase
+      .from("products")
+      .select("id, specs")
+      .eq("library_id", libraryId)
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (error) return { error: error.message };
+    for (const r of data || []) {
+      const specs = (r as { specs?: SpecItem[] | null }).specs || [];
+      if (!specs.some((s) => s && s.key === "标签" && s.value === n)) continue;
+      const next = specs.filter((s) => !(s && s.key === "标签" && s.value === n));
+      const { error: upErr } = await supabase
+        .from("products")
+        .update({ specs: next })
+        .eq("id", (r as { id: string }).id)
+        .eq("user_id", user.id);
+      if (upErr) return { error: upErr.message };
+    }
+    if (!data || data.length < pageSize) break;
+    from += pageSize;
+  }
+  revalidatePath("/products");
+  revalidatePath("/products/new");
+  return {};
+}
