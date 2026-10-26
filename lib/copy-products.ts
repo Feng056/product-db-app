@@ -17,9 +17,13 @@ export async function copyProductsToLibrary(
 ): Promise<number> {
   // 读源库产品（分享者已通过 get_library_share 授权，或主人自己）
   // categories 非空时只复制这些分类的产品
+  // 副本行的 updated_at 直接取源产品的 updated_at：订阅者看到的更新时间就是
+  // 发布者最后一次修改该产品的时间，而不是订阅/同步写入副本的时间。
+  // （数据库的 set_updated_at 触发器只在 updated_at 未被显式赋值时才盖当前时间，
+  // 所以这里显式传值不会被覆盖；自建库的编辑仍走原来的“最后修改时间”。）
   let query = supabase
     .from("products")
-    .select("id, name, model, category, price, specs, notes, images")
+    .select("id, name, model, category, price, specs, notes, images, updated_at")
     .eq("library_id", sourceLibraryId);
   if (categories && categories.length > 0) {
     query = query.in("category", categories);
@@ -60,6 +64,7 @@ export async function copyProductsToLibrary(
       notes: String(p.notes || ""),
       images: newImages,
       docs: [],
+      updated_at: (p as { updated_at?: string }).updated_at || new Date().toISOString(),
     });
     if (!insErr) copied++;
     onProgress?.(copied, total);
@@ -78,6 +83,7 @@ type SyncProductRow = {
   notes: string;
   images: string[];
   source_product_id?: string | null;
+  updated_at: string;
 };
 
 function normSyncSpecs(specs: unknown): { key: string; value: string }[] {
@@ -180,7 +186,7 @@ export async function syncProductsToLibrary(
 ): Promise<number> {
   let srcQuery = supabase
     .from("products")
-    .select("id, user_id, name, model, category, price, specs, notes, images")
+    .select("id, user_id, name, model, category, price, specs, notes, images, updated_at")
     .eq("library_id", sourceLibraryId);
   if (categories && categories.length > 0) {
     srcQuery = srcQuery.in("category", categories);
@@ -242,6 +248,7 @@ export async function syncProductsToLibrary(
       specs?: { key: string; value: string }[];
       images?: string[];
       source_product_id?: string;
+      updated_at?: string;
     } = {};
     if (sp.name !== cp.name) patch.name = sp.name;
     if (sp.model !== cp.model) patch.model = sp.model;
@@ -259,6 +266,9 @@ export async function syncProductsToLibrary(
     // 老副本回填 linkage
     if (!cp.source_product_id) patch.source_product_id = sp.id;
     if (Object.keys(patch).length > 0) {
+      // 只要同步动了这一行，就把更新时间同步成源产品的更新时间：
+      // 订阅者看到的是发布者最后一次改它的时间，而不是本次同步的时间。
+      patch.updated_at = sp.updated_at;
       await supabase.from("products").update(patch).eq("id", cp.id).eq("user_id", targetUserId);
       affected++;
     }
@@ -279,6 +289,7 @@ export async function syncProductsToLibrary(
       notes: String(sp.notes || ""),
       images: newImages,
       docs: [],
+      updated_at: sp.updated_at,
     });
     if (!error) affected++;
   }
