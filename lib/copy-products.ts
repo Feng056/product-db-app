@@ -195,7 +195,7 @@ export async function syncProductsToLibrary(
     srcQuery,
     supabase
       .from("products")
-      .select("id, name, model, category, price, specs, notes, images, source_product_id")
+      .select("id, name, model, category, price, specs, notes, images, source_product_id, updated_at")
       .eq("library_id", targetLibraryId)
       .eq("user_id", targetUserId),
   ]);
@@ -268,7 +268,10 @@ export async function syncProductsToLibrary(
     if (Object.keys(patch).length > 0) {
       // 只要同步动了这一行，就把更新时间同步成源产品的更新时间：
       // 订阅者看到的是发布者最后一次改它的时间，而不是本次同步的时间。
-      patch.updated_at = sp.updated_at;
+      // 本来就一致时不重复写，避免触发器把它盖成同步时间。
+      if (sp.updated_at !== cp.updated_at) {
+        patch.updated_at = sp.updated_at;
+      }
       await supabase.from("products").update(patch).eq("id", cp.id).eq("user_id", targetUserId);
       affected++;
     }
