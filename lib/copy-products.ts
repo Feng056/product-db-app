@@ -176,14 +176,20 @@ async function reuploadSyncImages(
  * 新增的插入、源库删了的删行（只删行）、字段改了的只更新改了的列——只改价格就只改价格，
  * 图片没变不重传，图片变了才重传。返回受影响的产品数（新增 + 删除 + 更新），0 表示已一致。
  * 首次订阅仍走全量复制（copyProductsToLibrary），这里只用于刷新/推送。
+ * opts.isPush 为 true 表示这次是发布者推送：内容确实变了的行记下本次推送时间
+ * （pushed_at），订阅者详情页显示的就是这个时间；刷新（拉取）不碰 pushed_at，
+ * 所以订阅者看到的永远是“发布者上次推送的时间”，而不是自己刷新的时间。
  */
 export async function syncProductsToLibrary(
   supabase: SupabaseClient,
   sourceLibraryId: string,
   targetLibraryId: string,
   targetUserId: string,
-  categories?: string[] | null
+  categories?: string[] | null,
+  opts?: { isPush?: boolean }
 ): Promise<number> {
+  // 整次推送共用一个时间戳：同一批推过去的商品显示同一个推送时间
+  const pushTime = opts?.isPush ? new Date().toISOString() : null;
   let srcQuery = supabase
     .from("products")
     .select("id, user_id, name, model, category, price, specs, notes, images, updated_at")
@@ -249,6 +255,7 @@ export async function syncProductsToLibrary(
       images?: string[];
       source_product_id?: string;
       updated_at?: string;
+      pushed_at?: string;
     } = {};
     if (sp.name !== cp.name) patch.name = sp.name;
     if (sp.model !== cp.model) patch.model = sp.model;
@@ -272,6 +279,12 @@ export async function syncProductsToLibrary(
       if (sp.updated_at !== cp.updated_at) {
         patch.updated_at = sp.updated_at;
       }
+      // 推送时：内容确实变了的行记下本次推送时间（只看内容列，关联回填不算）。
+      // 刷新不写 pushed_at，所以订阅者看到的永远是上次推送时间。
+      const contentChanged = ["name", "model", "category", "price", "notes", "specs", "images"].some(
+        (k) => k in patch
+      );
+      if (pushTime && contentChanged) patch.pushed_at = pushTime;
       await supabase.from("products").update(patch).eq("id", cp.id).eq("user_id", targetUserId);
       affected++;
     }
@@ -293,6 +306,8 @@ export async function syncProductsToLibrary(
       images: newImages,
       docs: [],
       updated_at: sp.updated_at,
+      // 推送中新增的行同样记下推送时间；刷新中新增的行不记（没有推送发生）
+      ...(pushTime ? { pushed_at: pushTime } : {}),
     });
     if (!error) affected++;
   }

@@ -96,6 +96,10 @@ export default async function ProductDetailPage({
   const showCreated = timeDisplay !== "updated";
   const showUpdated = timeDisplay !== "created";
 
+  // 订阅者看到的更新时间 = 最后一次推送时间；没推送过时退回发布者改它的时间。
+  // 可编辑的视图（自建库、共同创作者）仍显示最后修改时间。
+  const displayUpdatedAt = canEdit ? product.updated_at : product.pushed_at || product.updated_at;
+
   const imageUrls: Record<string, string> = {};
   for (const p of product.images || []) {
     imageUrls[p] = supabase.storage.from("product-images").getPublicUrl(p).data.publicUrl;
@@ -232,7 +236,7 @@ export default async function ProductDetailPage({
               <p className="text-xs text-gray-400 dark:text-gray-500">
                 {showCreated && <>创建于 {formatDateTime(product.created_at)}</>}
                 {showCreated && showUpdated && " · "}
-                {showUpdated && <>更新于 {formatDateTime(product.updated_at)}</>}
+                {showUpdated && <>更新于 {formatDateTime(displayUpdatedAt)}</>}
               </p>
             )}
           </div>

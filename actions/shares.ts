@@ -215,7 +215,7 @@ export async function pushToAllSubscribers(
   let updated = 0;
   for (const s of subs || []) {
     if (!s.copy_library_id) continue;
-    await syncCopy(supabase, sourceLibraryId, s.copy_library_id, s.subscriber_id, publishCategories);
+    await syncCopy(supabase, sourceLibraryId, s.copy_library_id, s.subscriber_id, publishCategories, true);
     await supabase
       .from("libraries")
       .update({ time_display: timeDisplay })
@@ -230,15 +230,18 @@ export async function pushToAllSubscribers(
   return updated;
 }
 
-/** 同步单个副本：增量同步，只同步改动的部分（首次订阅仍走全量复制） */
+/** 同步单个副本：增量同步，只同步改动的部分（首次订阅仍走全量复制）。
+ * isPush=true 表示发布者推送：内容变了的行记下推送时间；刷新不传，订阅者
+ * 看到的就永远是上次推送时间，而不是自己刷新的时间。 */
 async function syncCopy(
   supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
   sourceId: string,
   copyId: string,
   copyOwnerId: string,
-  categories?: string[] | null
+  categories?: string[] | null,
+  isPush?: boolean
 ): Promise<number> {
-  return syncProductsToLibrary(supabase, sourceId, copyId, copyOwnerId, categories);
+  return syncProductsToLibrary(supabase, sourceId, copyId, copyOwnerId, categories, { isPush });
 }
 
 /** 主人一键推送：把源库最新内容覆盖到所有订阅者的副本 */

@@ -33,6 +33,8 @@ export type Product = {
   docs: DocItem[]; // Storage 路径（product-docs bucket）
   created_at: string;
   updated_at: string;
+  /** 最后一次推送到该副本的时间（仅订阅副本行有值；源库行与未推送过的副本行为空） */
+  pushed_at?: string | null;
 };
 
 export type Profile = {
