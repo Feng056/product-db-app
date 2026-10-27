@@ -1,8 +1,10 @@
 -- ============================================================
 -- 商品编码批量重编 · 执行版（会写数据！先跑 regen-codes-dryrun.sql 核对）
 -- 对象：只限 Feng 自己的商品（user_id = 下面的值）
--- 规则：组号按 ①50 组 → ②60 组 → ③名称前两位数字十年取整（不再看旧型号）
---       → ④兜底 10；组内按创建时间先后从 0001 顺序排，编码 = 组号 + 4 位序号。
+-- 规则：组号按 ①50 组 → ②60 组 → ③105 特例 → 40
+--       → ④名称前两位数字十年取整（不再看旧型号）→ ⑤兜底 10；
+--       组内先按档位（数字+单白字 → 纯数字 → 其它）再按创建时间从 0001 顺序排，
+--       编码 = 组号 + 4 位序号。
 -- 唯一性 guard：新编码总数 ≠ 去重数，或任一新编码不是 6 位数字时，
 --       DO 块直接抛异常，本文件不执行任何写入。
 -- 注意：
@@ -65,7 +67,9 @@ base AS (
           )
         )
       THEN '60'
-      -- ③ 其余按名称里先出现的两位数字字符按十年取整（不再看旧型号）
+      -- ③ 特例：名称数字串以 105 开头 → 40（如 105*97白平口）
+      WHEN name_digits LIKE '105%' THEN '40'
+      -- ④ 其余按名称里先出现的两位数字字符按十年取整（不再看旧型号）
       WHEN length(name_digits) >= 2 THEN
         CASE
           WHEN (substring(name_digits FROM 1 FOR 2))::int BETWEEN 10 AND 19 THEN '10'
@@ -74,16 +78,25 @@ base AS (
           WHEN (substring(name_digits FROM 1 FOR 2))::int BETWEEN 40 AND 99 THEN '40'
           ELSE '10'
         END
-      -- ④ 名称里没有数字 → 兜底 10
+      -- ⑤ 名称里没有数字 → 兜底 10
       ELSE '10'
-    END AS grp
+    END AS grp,
+    -- 排号档位（同组内先按档位、档内再按创建时间）：
+    -- 0 档：名称 = 一串数字 + 一个“白”字（如 1710白、2050白）；
+    -- 1 档：纯数字名称（如 1710）；
+    -- 2 档：其它全部（如 36红印、4020海鲜、无数字名称）
+    CASE
+      WHEN name ~ '^[0-9]+白$' THEN 0
+      WHEN name ~ '^[0-9]+$' THEN 1
+      ELSE 2
+    END AS tier
   FROM raw
 ),
 numbered AS (
   SELECT
     *,
     grp || LPAD(
-      (ROW_NUMBER() OVER (PARTITION BY grp ORDER BY created_at, id))::text,
+      (ROW_NUMBER() OVER (PARTITION BY grp ORDER BY tier, created_at, id))::text,
       4,
       '0'
     ) AS new_code

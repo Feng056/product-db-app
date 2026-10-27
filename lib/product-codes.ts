@@ -17,10 +17,11 @@ export function tagsOf(specs: SpecItem[] | null | undefined): string[] {
  *    分类含 垃圾袋/平口袋/黑色（按包含算，如八折垃圾袋也算）；
  *    任一标签含 垃圾袋/平口袋/黑色 → 50。
  * ② 60 组（任一成立）：名称含 海鲜；分类含 海鲜；任一标签含 海鲜 → 60。
- * ③ 其余按名称里先出现的两位数字字符（按出现顺序取前两个数字字符，如新2060 取 20，
+ * ③ 特例：名称里先出现的数字串以 105 开头 → 40（如 105*97白平口）。
+ * ④ 其余按名称里先出现的两位数字字符（按出现顺序取前两个数字字符，如新2060 取 20，
  *    1710白 取 17）按十年取整：10-19→10，20-29→20，30-39→30，40-99→40；
  *    名称里数字不足两位、或前两位小于 10 时不命中。
- * ④ 以上都不命中 → 兜底 10。
+ * ⑤ 以上都不命中 → 兜底 10。
  */
 export function groupOf(
   category: string,
@@ -35,6 +36,7 @@ export function groupOf(
     return "50";
   if ((name || "").includes("海鲜") || hay.includes("海鲜")) return "60";
   const digits = (name || "").replace(/\D/g, "");
+  if (digits.startsWith("105")) return "40";
   if (digits.length >= 2) {
     const firstTwo = Number(digits.slice(0, 2));
     if (firstTwo >= 10 && firstTwo <= 19) return "10";
