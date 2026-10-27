@@ -215,16 +215,15 @@ export default async function SettingsPage() {
           </div>
         </CollapsibleSection>
 
-        {/* 规格参数显示（仅管理员）：一处统一配置，对所有商品生效 */}
+        {/* 规格参数显示（仅管理员）：一处统一配置，对所有商品生效；默认收起防误触 */}
         {isAdmin && (
-          <section className="mt-4">
-            <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400 ">参数显示</h2>
+          <CollapsibleSection title="参数显示" defaultCollapsed>
             <SpecDisplayConfigCard
               initialKeys={specKeys}
               initialOrder={specOrder}
               initialHidden={specHidden}
             />
-          </section>
+          </CollapsibleSection>
         )}
 
         {/* 管理（仅管理员）：可折叠，分组展示 */}
