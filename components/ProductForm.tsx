@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import SpecsEditor, { inputCls } from "./SpecsEditor";
+import { checkModelConflict } from "@/actions/products";
 import type { DocItem, Product } from "@/lib/types";
 
 function SubmitButton({ label }: { label: string }) {
@@ -39,6 +40,22 @@ export default function ProductForm({
 
   async function onSubmit(formData: FormData) {
     setError(null);
+    // 手动填了编码且与原来不同时，先查当前用户自己的商品里是否已有该编码；
+    // 有 → 弹确认框写明对方商品名，问是否替换；取消则本次保存中止，什么都不改。
+    const model = String(formData.get("model") || "").trim();
+    if (model && (!product || model !== product.model)) {
+      const { conflictName } = await checkModelConflict(model, product?.id);
+      if (conflictName) {
+        const ok = window.confirm(
+          `该编码已被商品「${conflictName}」使用，是否替换？\n（确认后该商品将自动生成一个新编码）`
+        );
+        if (!ok) {
+          setError("已取消，未替换");
+          return;
+        }
+        formData.set("confirmReplace", "1");
+      }
+    }
     formData.set("keepImages", JSON.stringify(keepImages));
     formData.set("keepDocs", JSON.stringify(keepDocs));
     const res = await action(formData);
@@ -63,6 +80,7 @@ export default function ProductForm({
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">型号</label>
           <input name="model" defaultValue={product?.model} placeholder="如 X100" className={inputCls} />
+          <p className="mt-1 text-xs text-gray-400">留空保存时自动生成 6 位编码</p>
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">分类</label>

@@ -4,6 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { DocItem, SpecItem } from "@/lib/types";
+import {
+  formatCode,
+  groupOf,
+  seqOf,
+  tagsOf,
+} from "@/lib/product-codes";
 
 type ActionResult = { error?: string };
 
@@ -92,6 +98,82 @@ function parseDocs(raw: string): DocItem[] {
   }
 }
 
+/** 取某组内下一个可用编码：组内已有最大序号 +1（只认组号 + 4 位数字的编码，旧格式不计入）。 */
+async function nextCodeInGroup(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  group: string
+): Promise<string> {
+  const { data } = await supabase
+    .from("products")
+    .select("model")
+    .eq("user_id", userId)
+    .like("model", `${group}____`);
+  const used = new Set<string>();
+  let max = 0;
+  for (const row of data || []) {
+    const m = String(row.model || "");
+    const seq = seqOf(m, group);
+    if (seq !== null) {
+      used.add(m);
+      if (seq > max) max = seq;
+    }
+  }
+  let seq = max + 1;
+  while (seq <= 9999 && used.has(formatCode(group, seq))) seq++;
+  if (seq > 9999) throw new Error(`编码组 ${group} 已用完`);
+  return formatCode(group, seq);
+}
+
+/** 查当前用户自己的商品里是否已有该编码（排除指定 id），返回冲突商品名。 */
+export async function checkModelConflict(
+  model: string,
+  excludeId?: string
+): Promise<{ conflictName: string | null }> {
+  const { supabase, user } = await requireUser();
+  const code = model.trim();
+  if (!code) return { conflictName: null };
+  let q = supabase
+    .from("products")
+    .select("name")
+    .eq("user_id", user.id)
+    .eq("model", code)
+    .limit(1);
+  if (excludeId) q = q.neq("id", excludeId);
+  const { data } = await q;
+  return { conflictName: data?.[0]?.name ?? null };
+}
+
+/**
+ * 被顶掉商品的再生成：先按组号顺序（分类/标签→50，名称→10，原型号十年取整，兜底 10）算它自己的组号，
+ * 再取该组下一个可用编码并写回。先顶后写调用方自己的编码，保证不出现重复中间态。
+ */
+async function regenerateDisplacedModel(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  displaced: {
+    id: string;
+    name: string;
+    category: string;
+    specs: SpecItem[] | null;
+    model: string;
+  }
+): Promise<void> {
+  const group = groupOf(
+    displaced.category,
+    tagsOf(displaced.specs),
+    displaced.name,
+    displaced.model
+  );
+  const newCode = await nextCodeInGroup(supabase, userId, group);
+  const { error } = await supabase
+    .from("products")
+    .update({ model: newCode, updated_at: new Date().toISOString() })
+    .eq("id", displaced.id)
+    .eq("user_id", userId);
+  if (error) throw new Error(error.message);
+}
+
 /** 上传一批文件到指定 bucket，返回 Storage 路径数组 */
 async function uploadFiles(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -156,13 +238,49 @@ export async function createProduct(formData: FormData): Promise<ActionResult> {
     const docPaths = await uploadFiles(supabase, "product-docs", user.id, docFiles);
 
     const priceRaw = String(formData.get("price") || "").trim();
+    const categoryRaw =
+      String(formData.get("category") || "").trim() || "未分类";
+    const specsParsed = parseSpecs(String(formData.get("specs") || ""));
+    const modelRaw = String(formData.get("model") || "").trim();
+    const confirmReplace = String(formData.get("confirmReplace") || "") === "1";
+    // 编码：空着 → 自动生成（分类/标签含垃圾袋/平口袋/黑色 → 50 组，否则默认 10 组）；
+    // 手动填了已存在的编码 → 未确认替换时报错，已确认时先把对方顶掉再写入。
+    let finalModel = modelRaw;
+    if (!modelRaw) {
+      // 新建时没有原型号，按 ①②④ 走：分类/标签→50，名称→10，兜底 10。
+      finalModel = await nextCodeInGroup(
+        supabase,
+        user.id,
+        groupOf(categoryRaw, tagsOf(specsParsed), name)
+      );
+    } else {
+      const { data: conflict } = await supabase
+        .from("products")
+        .select("id, name, category, specs, model")
+        .eq("user_id", user.id)
+        .eq("model", modelRaw)
+        .limit(1);
+      if (conflict && conflict.length > 0) {
+        if (!confirmReplace)
+          throw new Error(
+            `该编码已被商品「${conflict[0].name}」使用，请确认是否替换`
+          );
+        await regenerateDisplacedModel(supabase, user.id, {
+          id: conflict[0].id,
+          name: String(conflict[0].name || ""),
+          category: String(conflict[0].category || ""),
+          specs: (conflict[0].specs as SpecItem[]) || [],
+          model: String(conflict[0].model || ""),
+        });
+      }
+    }
     const { error } = await supabase.from("products").insert({
       user_id: user.id,
       library_id: libraryId,
       name,
-      model: String(formData.get("model") || "").trim(),
-      category: String(formData.get("category") || "").trim() || "未分类",
-      specs: parseSpecs(String(formData.get("specs") || "")),
+      model: finalModel,
+      category: categoryRaw,
+      specs: specsParsed,
       price: priceRaw === "" ? null : Number(priceRaw),
       notes: String(formData.get("notes") || ""),
       images: imagePaths,
@@ -191,7 +309,7 @@ export async function updateProduct(formData: FormData): Promise<ActionResult> {
   // 确认是自己的产品
   const { data: existing } = await supabase
     .from("products")
-    .select("id, images, docs, library_id")
+    .select("id, images, docs, library_id, model")
     .eq("id", id)
     .eq("user_id", user.id)
     .single();
@@ -226,13 +344,51 @@ export async function updateProduct(formData: FormData): Promise<ActionResult> {
       await supabase.storage.from("product-docs").remove(removedDocPaths);
 
     const priceRaw = String(formData.get("price") || "").trim();
+    const categoryRaw =
+      String(formData.get("category") || "").trim() || "未分类";
+    const specsParsed = parseSpecs(String(formData.get("specs") || ""));
+    const modelRaw = String(formData.get("model") || "").trim();
+    const confirmReplace = String(formData.get("confirmReplace") || "") === "1";
+    const existingModel = String(existing.model || "");
+    // 编码：空着 → 自动生成（组号按 ①②③④：分类/标签→50，名称→10，原型号十年取整，兜底 10，
+    // 其中原型号取本次编辑前该商品自己的型号）；
+    // 改成已存在的编码 → 未确认替换时报错，已确认时先把对方顶掉再写入；没改则原样。
+    let finalModel = modelRaw;
+    if (!modelRaw) {
+      finalModel = await nextCodeInGroup(
+        supabase,
+        user.id,
+        groupOf(categoryRaw, tagsOf(specsParsed), name, existingModel)
+      );
+    } else if (modelRaw !== existingModel) {
+      const { data: conflict } = await supabase
+        .from("products")
+        .select("id, name, category, specs, model")
+        .eq("user_id", user.id)
+        .eq("model", modelRaw)
+        .neq("id", id)
+        .limit(1);
+      if (conflict && conflict.length > 0) {
+        if (!confirmReplace)
+          throw new Error(
+            `该编码已被商品「${conflict[0].name}」使用，请确认是否替换`
+          );
+        await regenerateDisplacedModel(supabase, user.id, {
+          id: conflict[0].id,
+          name: String(conflict[0].name || ""),
+          category: String(conflict[0].category || ""),
+          specs: (conflict[0].specs as SpecItem[]) || [],
+          model: String(conflict[0].model || ""),
+        });
+      }
+    }
     const { error } = await supabase
       .from("products")
       .update({
         name,
-        model: String(formData.get("model") || "").trim(),
-        category: String(formData.get("category") || "").trim() || "未分类",
-        specs: parseSpecs(String(formData.get("specs") || "")),
+        model: finalModel,
+        category: categoryRaw,
+        specs: specsParsed,
         price: priceRaw === "" ? null : Number(priceRaw),
         notes: String(formData.get("notes") || ""),
         images: [...keepImages, ...newImagePaths],
