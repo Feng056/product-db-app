@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
-type ActionResult = { error?: string; message?: string };
+type ActionResult = { error?: string; message?: string; redirectTo?: string };
 
 /** 账号制：内部邮箱域名（Supabase Auth 仍需要邮箱格式，且会校验域名真实存在，
     故必须用已解析的真实域名，不能用 .local 这类假域名） */
@@ -177,9 +177,12 @@ export async function signIn(formData: FormData): Promise<ActionResult> {
       return { error: "注册申请未通过，请联系管理员" };
     }
   }
-  // 只允许站内跳转，防止开放重定向
+  // 只允许站内跳转，防止开放重定向。
+  // 成功时不直接 redirect，改把目标地址返回给客户端，由客户端硬跳转
+  // （window.location.href），保证服务端一定拿到最新会话，杜绝“点了没反应、
+  // 刷新才进入”的竞态；目标地址的计算逻辑与原来完全一致。
   const target = next.startsWith("/") && !next.startsWith("//") ? next : "/products";
-  redirect(target);
+  return { redirectTo: target };
 }
 
 /** 申请重置密码（未登录可调用） */
