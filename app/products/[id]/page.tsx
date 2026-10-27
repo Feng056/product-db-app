@@ -7,6 +7,8 @@ import BottomNav from "@/components/BottomNav";
 import ProductForm from "@/components/ProductForm";
 import DocDownloadButton from "@/components/DocDownloadButton";
 import { formatPrice, formatDateTime } from "@/lib/utils";
+import { getSpecDisplayConfig } from "@/actions/spec-display";
+import { applySpecDisplay } from "@/lib/spec-display";
 import type { Product } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -50,6 +52,9 @@ export default async function ProductDetailPage({
   if (!data) notFound();
   const product = data as Product;
   const isEdit = searchParams.edit === "1";
+
+  // 详情页展示用的规格：按全局配置排序 + 过滤隐藏键（只影响展示，不动数据与筛选）
+  const displaySpecs = applySpecDisplay(product.specs || [], await getSpecDisplayConfig());
 
   // 并行：订阅关系 + 库时间显示设置
   const [subRes, libRes] = await Promise.all([
@@ -202,11 +207,11 @@ export default async function ProductDetailPage({
             </div>
 
             {/* 规格参数 */}
-            {(product.specs || []).length > 0 && (
+            {displaySpecs.length > 0 && (
               <div className="rounded-2xl bg-white dark:bg-gray-900 p-4">
                 <h2 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">规格参数</h2>
                 <dl className="divide-y divide-gray-100 dark:divide-gray-800 text-sm">
-                  {product.specs.map((s, i) => (
+                  {displaySpecs.map((s, i) => (
                     <div key={i} className="flex justify-between gap-4 py-2">
                       <dt className="text-gray-500 dark:text-gray-400 ">{s.key}</dt>
                       <dd className="text-right font-medium">{s.value}</dd>

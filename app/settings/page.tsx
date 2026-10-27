@@ -10,6 +10,7 @@ import ThemeSelector from "@/components/ThemeSelector";
 import CollapsibleSection from "@/components/CollapsibleSection";
 import InstallButton from "@/components/InstallButton";
 import AdminPanel from "@/components/AdminPanel";
+import SpecDisplayConfigCard from "@/components/SpecDisplayConfigCard";
 import type { InviteCode, Profile, Group } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -44,6 +45,9 @@ export default async function SettingsPage() {
   let pendingRegs: { id: string; username: string; display_name: string; registration_note: string; created_at: string }[] = [];
   let pendingResets: { id: string; username: string; display_name: string; note: string | null; created_at: string }[] = [];
   let isShutdown = false;
+  let specKeys: string[] = [];
+  let specOrder: string[] = [];
+  let specHidden: string[] = [];
   if (isAdmin) {
     // 并行拉取管理数据
     const [usersRes, codesRes, groupsRes, tagsRes, subRowsRes, libsRes] = await Promise.all([
@@ -113,6 +117,33 @@ export default async function SettingsPage() {
     pendingRegs = regs;
     pendingResets = resets;
     isShutdown = shutdown;
+    // 规格展示全局配置：收集全部规格键 + 常见键
+    const { getSpecDisplayConfig } = await import("@/actions/spec-display");
+    const { COMMON_SPEC_KEYS } = await import("@/lib/spec-display");
+    const specConfig = await getSpecDisplayConfig();
+    specOrder = specConfig.order;
+    specHidden = specConfig.hidden;
+    const keySet = new Set<string>();
+    {
+      const PAGE = 1000;
+      let from = 0;
+      for (;;) {
+        const { data } = await supabase
+          .from("products")
+          .select("specs")
+          .range(from, from + PAGE - 1);
+        const rows = (data || []) as unknown as { specs?: { key?: unknown }[] }[];
+        for (const r of rows) {
+          for (const s of r.specs || []) {
+            if (s && typeof s.key === "string" && s.key.trim()) keySet.add(s.key.trim());
+          }
+        }
+        if (rows.length < PAGE) break;
+        from += PAGE;
+      }
+    }
+    for (const k of COMMON_SPEC_KEYS) keySet.add(k);
+    specKeys = Array.from(keySet);
   }
 
   return (
@@ -183,6 +214,18 @@ export default async function SettingsPage() {
             <ThemeSelector />
           </div>
         </CollapsibleSection>
+
+        {/* 规格参数显示（仅管理员）：一处统一配置，对所有商品生效 */}
+        {isAdmin && (
+          <section className="mt-4">
+            <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400 ">参数显示</h2>
+            <SpecDisplayConfigCard
+              initialKeys={specKeys}
+              initialOrder={specOrder}
+              initialHidden={specHidden}
+            />
+          </section>
+        )}
 
         {/* 管理（仅管理员）：可折叠，分组展示 */}
         {isAdmin && (
