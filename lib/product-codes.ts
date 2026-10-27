@@ -11,24 +11,21 @@ export function tagsOf(specs: SpecItem[] | null | undefined): string[] {
     .map((s) => String(s.value || ""));
 }
 
-/** 名称含 杯袋 / 单杯 → 10 组（按包含算）。 */
-export const NAME_GROUP_KEYWORDS = ["杯袋", "单杯"] as const;
-
 /**
- * 算组号（按顺序命中一条即定）：
+ * 算组号（按顺序命中一条即定；旧型号不参与分组，只被替换）：
  * ① 50 组（任一成立）：名称含 黑（单字就够，如大黑手提袋、黑色手提都算）；
  *    分类含 垃圾袋/平口袋/黑色（按包含算，如八折垃圾袋也算）；
  *    任一标签含 垃圾袋/平口袋/黑色 → 50。
- * ② 名称含 杯袋 / 单杯 → 10。
- * ③ 原型号开头两位数字（是数字才算）按十年取整：10-19→10，20-29→20，30-39→30，40-99→40。
+ * ② 60 组（任一成立）：名称含 海鲜；分类含 海鲜；任一标签含 海鲜 → 60。
+ * ③ 其余按名称里先出现的两位数字字符（按出现顺序取前两个数字字符，如新2060 取 20，
+ *    1710白 取 17）按十年取整：10-19→10，20-29→20，30-39→30，40-99→40；
+ *    名称里数字不足两位、或前两位小于 10 时不命中。
  * ④ 以上都不命中 → 兜底 10。
- * 新建时没有原型号，只走 ①②④。
  */
 export function groupOf(
   category: string,
   tags: string[],
-  name?: string,
-  oldModel?: string
+  name?: string
 ): string {
   const hay = `${category || ""} ${tags.join(" ")}`;
   if (
@@ -36,11 +33,10 @@ export function groupOf(
     (name || "").includes("黑")
   )
     return "50";
-  if (NAME_GROUP_KEYWORDS.some((k) => (name || "").includes(k)))
-    return "10";
-  const m = (oldModel || "").match(/^(\d)(\d)/);
-  if (m) {
-    const firstTwo = Number(m[1] + m[2]);
+  if ((name || "").includes("海鲜") || hay.includes("海鲜")) return "60";
+  const digits = (name || "").replace(/\D/g, "");
+  if (digits.length >= 2) {
+    const firstTwo = Number(digits.slice(0, 2));
     if (firstTwo >= 10 && firstTwo <= 19) return "10";
     if (firstTwo >= 20 && firstTwo <= 29) return "20";
     if (firstTwo >= 30 && firstTwo <= 39) return "30";

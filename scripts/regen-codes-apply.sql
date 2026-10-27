@@ -1,7 +1,7 @@
 -- ============================================================
 -- 商品编码批量重编 · 执行版（会写数据！先跑 regen-codes-dryrun.sql 核对）
 -- 对象：只限 Feng 自己的商品（user_id = 下面的值）
--- 规则：组号按 ①50 组 → ②名称含杯袋/单杯→10 → ③原型号开头两位十年取整
+-- 规则：组号按 ①50 组 → ②60 组 → ③名称前两位数字十年取整（不再看旧型号）
 --       → ④兜底 10；组内按创建时间先后从 0001 顺序排，编码 = 组号 + 4 位序号。
 -- 唯一性 guard：新编码总数 ≠ 去重数，或任一新编码不是 6 位数字时，
 --       DO 块直接抛异常，本文件不执行任何写入。
@@ -15,25 +15,34 @@
 
 DROP TABLE IF EXISTS _regen_codes;
 CREATE TEMP TABLE _regen_codes AS
-WITH base AS (
+WITH raw AS (
   SELECT
     p.id,
     p.name,
     p.model AS old_code,
     p.created_at,
+    p.category,
+    p.specs,
+    regexp_replace(p.name, '\D', '', 'g') AS name_digits
+  FROM public.products AS p
+  WHERE p.user_id = '9b33b5fe-ff38-4026-8436-b204c1aa52fa'
+),
+base AS (
+  SELECT
+    *,
     CASE
       -- ① 50 组（任一成立）：名称含 黑（单字就够）；
       --    分类含 垃圾袋/平口袋/黑色（按包含算）；
       --    任一标签（specs 里 key=标签 的行）含其中之一 → 50
-      WHEN p.name LIKE '%黑%'
-        OR p.category LIKE '%垃圾袋%'
-        OR p.category LIKE '%平口袋%'
-        OR p.category LIKE '%黑色%'
+      WHEN name LIKE '%黑%'
+        OR category LIKE '%垃圾袋%'
+        OR category LIKE '%平口袋%'
+        OR category LIKE '%黑色%'
         OR (
-          jsonb_typeof(p.specs) = 'array'
+          jsonb_typeof(specs) = 'array'
           AND EXISTS (
             SELECT 1
-            FROM jsonb_array_elements(p.specs) AS s
+            FROM jsonb_array_elements(specs) AS s
             WHERE s->>'key' = '标签'
               AND (
                 s->>'value' LIKE '%垃圾袋%'
@@ -43,22 +52,32 @@ WITH base AS (
           )
         )
       THEN '50'
-      -- ② 名称含 杯袋 / 单杯 → 10
-      WHEN p.name LIKE '%杯袋%' OR p.name LIKE '%单杯%' THEN '10'
-      -- ③ 原型号开头两位数字按十年取整
-      WHEN p.model ~ '^\d\d' THEN
+      -- ② 60 组（任一成立）：名称含 海鲜；分类含 海鲜；任一标签含 海鲜 → 60
+      WHEN name LIKE '%海鲜%'
+        OR category LIKE '%海鲜%'
+        OR (
+          jsonb_typeof(specs) = 'array'
+          AND EXISTS (
+            SELECT 1
+            FROM jsonb_array_elements(specs) AS s
+            WHERE s->>'key' = '标签'
+              AND s->>'value' LIKE '%海鲜%'
+          )
+        )
+      THEN '60'
+      -- ③ 其余按名称里先出现的两位数字字符按十年取整（不再看旧型号）
+      WHEN length(name_digits) >= 2 THEN
         CASE
-          WHEN (substring(p.model FROM 1 FOR 2))::int BETWEEN 10 AND 19 THEN '10'
-          WHEN (substring(p.model FROM 1 FOR 2))::int BETWEEN 20 AND 29 THEN '20'
-          WHEN (substring(p.model FROM 1 FOR 2))::int BETWEEN 30 AND 39 THEN '30'
-          WHEN (substring(p.model FROM 1 FOR 2))::int BETWEEN 40 AND 99 THEN '40'
+          WHEN (substring(name_digits FROM 1 FOR 2))::int BETWEEN 10 AND 19 THEN '10'
+          WHEN (substring(name_digits FROM 1 FOR 2))::int BETWEEN 20 AND 29 THEN '20'
+          WHEN (substring(name_digits FROM 1 FOR 2))::int BETWEEN 30 AND 39 THEN '30'
+          WHEN (substring(name_digits FROM 1 FOR 2))::int BETWEEN 40 AND 99 THEN '40'
           ELSE '10'
         END
-      -- ④ 兜底 10
+      -- ④ 名称里没有数字 → 兜底 10
       ELSE '10'
     END AS grp
-  FROM public.products AS p
-  WHERE p.user_id = '9b33b5fe-ff38-4026-8436-b204c1aa52fa'
+  FROM raw
 ),
 numbered AS (
   SELECT

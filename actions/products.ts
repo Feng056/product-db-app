@@ -145,8 +145,9 @@ export async function checkModelConflict(
 }
 
 /**
- * 被顶掉商品的再生成：先按组号顺序（分类/标签→50，名称→10，原型号十年取整，兜底 10）算它自己的组号，
- * 再取该组下一个可用编码并写回。先顶后写调用方自己的编码，保证不出现重复中间态。
+ * 被顶掉商品的再生成：先按新组号顺序（50 组→60 组→名称前两位数字十年取整→兜底 10，
+ * 旧型号不参与分组）算它自己的组号，再取该组下一个可用编码并写回。
+ * 先顶后写调用方自己的编码，保证不出现重复中间态。
  */
 async function regenerateDisplacedModel(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -156,14 +157,12 @@ async function regenerateDisplacedModel(
     name: string;
     category: string;
     specs: SpecItem[] | null;
-    model: string;
   }
 ): Promise<void> {
   const group = groupOf(
     displaced.category,
     tagsOf(displaced.specs),
-    displaced.name,
-    displaced.model
+    displaced.name
   );
   const newCode = await nextCodeInGroup(supabase, userId, group);
   const { error } = await supabase
@@ -243,11 +242,11 @@ export async function createProduct(formData: FormData): Promise<ActionResult> {
     const specsParsed = parseSpecs(String(formData.get("specs") || ""));
     const modelRaw = String(formData.get("model") || "").trim();
     const confirmReplace = String(formData.get("confirmReplace") || "") === "1";
-    // 编码：空着 → 自动生成（分类/标签含垃圾袋/平口袋/黑色 → 50 组，否则默认 10 组）；
+    // 编码：空着 → 自动生成（组号按新规则：50 组→60 组→名称前两位数字十年取整→兜底 10）；
     // 手动填了已存在的编码 → 未确认替换时报错，已确认时先把对方顶掉再写入。
     let finalModel = modelRaw;
     if (!modelRaw) {
-      // 新建时没有原型号，按 ①②④ 走：分类/标签→50，名称→10，兜底 10。
+      // 新建时没有旧型号，组号按 ①50 → ②60 → ③名称数字 → ④兜底 10 走。
       finalModel = await nextCodeInGroup(
         supabase,
         user.id,
@@ -270,7 +269,6 @@ export async function createProduct(formData: FormData): Promise<ActionResult> {
           name: String(conflict[0].name || ""),
           category: String(conflict[0].category || ""),
           specs: (conflict[0].specs as SpecItem[]) || [],
-          model: String(conflict[0].model || ""),
         });
       }
     }
@@ -350,15 +348,15 @@ export async function updateProduct(formData: FormData): Promise<ActionResult> {
     const modelRaw = String(formData.get("model") || "").trim();
     const confirmReplace = String(formData.get("confirmReplace") || "") === "1";
     const existingModel = String(existing.model || "");
-    // 编码：空着 → 自动生成（组号按 ①②③④：分类/标签→50，名称→10，原型号十年取整，兜底 10，
-    // 其中原型号取本次编辑前该商品自己的型号）；
+    // 编码：空着 → 自动生成（组号按新规则：50 组→60 组→名称前两位数字十年取整→兜底 10，
+    // 不再看旧型号）；
     // 改成已存在的编码 → 未确认替换时报错，已确认时先把对方顶掉再写入；没改则原样。
     let finalModel = modelRaw;
     if (!modelRaw) {
       finalModel = await nextCodeInGroup(
         supabase,
         user.id,
-        groupOf(categoryRaw, tagsOf(specsParsed), name, existingModel)
+        groupOf(categoryRaw, tagsOf(specsParsed), name)
       );
     } else if (modelRaw !== existingModel) {
       const { data: conflict } = await supabase
@@ -378,7 +376,6 @@ export async function updateProduct(formData: FormData): Promise<ActionResult> {
           name: String(conflict[0].name || ""),
           category: String(conflict[0].category || ""),
           specs: (conflict[0].specs as SpecItem[]) || [],
-          model: String(conflict[0].model || ""),
         });
       }
     }
